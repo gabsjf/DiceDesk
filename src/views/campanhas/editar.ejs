@@ -1,0 +1,37 @@
+<% function err(errors, f){ return errors && errors[f] ? errors[f].msg : null; } %>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-8">
+    <div class="card p-4">
+      <h2 class="h5 mb-3">Editar campanha</h2>
+
+      <form action="/campanhas/editar/<%= campanha.id %>" method="post" novalidate>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+        <div class="mb-3">
+          <label class="form-label">Nome da campanha</label>
+          <input name="nome" class="form-control <%= err(errors,'nome') ? 'is-invalid' : '' %>"
+                 value="<%= (campanha && campanha.nome) || '' %>"/>
+          <% if (err(errors,'nome')) { %><div class="invalid-feedback"><%= err(errors,'nome') %></div><% } %>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Sistema</label>
+          <input name="sistema" class="form-control <%= err(errors,'sistema') ? 'is-invalid' : '' %>"
+                 value="<%= (campanha && campanha.sistema) || '' %>"/>
+          <% if (err(errors,'sistema')) { %><div class="invalid-feedback"><%= err(errors,'sistema') %></div><% } %>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Descrição</label>
+          <textarea name="descricao" rows="4" class="form-control"><%= (campanha && campanha.descricao) || '' %></textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary"><i class="bi bi-check2 me-1"></i> Salvar</button>
+          <a class="btn btn-outline-secondary" href="/campanhas"><i class="bi bi-arrow-left me-1"></i> Voltar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

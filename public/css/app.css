@@ -1,0 +1,288 @@
+:root {
+  --bg: #1c1c22;
+  --surface: #2a2a33;
+  --text: #f5f5f7;
+  --muted: #9ca3af;
+  --primary: #f97316;   /* laranja */
+  --secondary: #22d3ee; /* azul ciano */
+  --danger: #ef4444;    /* vermelho */
+  --radius: 14px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 260px;
+  background: #1c1c22;
+  color: var(--muted);
+}
+.nav-link {
+  color: var(--muted);
+  border-radius: var(--radius);
+  font-weight: 500;
+}
+.nav-link.active, .nav-link:hover {
+  background: rgba(249,115,22,0.15);
+  color: var(--primary);
+}
+
+/* TOPBAR */
+.topbar {
+  height: 64px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex; align-items:center; justify-content:space-between;
+  padding: 0 1.5rem;
+}
+
+/* CARDS */
+.card {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+}
+.card h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  margin-bottom: .25rem;
+}
+.card .badge {
+  background: rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: .25rem .5rem;
+  font-size: .75rem;
+  color: var(--muted);
+}
+
+/* BOTÕES */
+.btn {
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+.btn-primary {
+  background: var(--primary);
+  border: none;
+}
+.btn-secondary {
+  background: var(--secondary);
+  border: none;
+  color: #000;
+}
+.btn-danger {
+  background: var(--danger);
+  border: none;
+}
+
+/* EMPTY STATE */
+.empty {
+  text-align: center;
+  color: var(--muted);
+  border: 2px dashed rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  padding: 2rem;
+}
+/* ==== CARDS DE CAMPANHA ==== */
+.campaign-card {
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.campaign-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  border: 1px solid rgba(249,115,22,.35); /* brilho âmbar */
+}
+
+/* Capa do card */
+.campaign-card .cover {
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  height: 140px;
+  position: relative;
+}
+.campaign-card .cover::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,.1), rgba(0,0,0,.65));
+}
+
+/* Badges */
+.campaign-card .badge {
+  background: rgba(255,255,255,.08);
+  border-radius: 999px;
+  padding: .25rem .65rem;
+  font-size: .75rem;
+  color: var(--muted);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+.campaign-card .badge i { font-size: .9rem; }
+
+/* Botões internos */
+.campaign-card .btn {
+  font-size: .85rem;
+  padding: .35rem .75rem;
+}
+.campaign-card .btn-primary {
+  background: linear-gradient(180deg, var(--primary), #d85d0e);
+  border: none;
+}
+.campaign-card .btn-secondary {
+  background: var(--secondary);
+  border: none;
+  color: #000;
+}
+.campaign-card .btn-outline-light {
+  border: 1px solid rgba(255,255,255,.2);
+  color: var(--text);
+}
+.campaign-card .btn-outline-light:hover {
+  background: rgba(255,255,255,.1);
+}
+
+/* Empty state no dark elegante */
+.empty {
+  background: var(--surface);
+  border: 2px dashed rgba(255,255,255,.08);
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted);
+}
+.empty i {
+  color: var(--primary);
+}
+
+/* ===== THEME: Obsidian + Aether (único) ===== */
+:root {
+  --bg: #0f1117;
+  --surface: #151a23;
+  --surface-2: #1b2230;
+  --text: #e7e9ee;
+  --muted: #98a2b3;
+  --primary: #8b5cf6;   /* violeta */
+  --aether:  #22e3a8;   /* menta */
+  --danger:  #ef4444;
+  --radius: 16px;
+}
+
+/* fundo com constelações sutis (não é textura do MasterApp) */
+body::before {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(800px 400px at 20% -10%, rgba(139,92,246,.12), transparent 60%),
+    radial-gradient(600px 300px at 120% 110%, rgba(34,227,168,.08), transparent 60%),
+    url("data:image/svg+xml,%3Csvg width='220' height='220' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff10'%3E%3Ccircle cx='10' cy='18' r='1'/%3E%3Ccircle cx='140' cy='40' r='1'/%3E%3Ccircle cx='80' cy='190' r='1'/%3E%3Ccircle cx='200' cy='120' r='1'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: auto, auto, 220px 220px;
+  mix-blend-mode: screen;
+}
+
+/* Topbar e Sidebar mantêm estrutura, mas com nossa paleta */
+.sidebar { background: #0f1117; }
+.nav-link.active, .nav-link:hover {
+  background: linear-gradient(90deg, rgba(139,92,246,.12), transparent 70%);
+  color: var(--primary);
+}
+
+/* ====== ARC CARD: card com canto recortado e borda luminosa ====== */
+.arc-card {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius);
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.arc-card::after {
+  /* canto recortado (top-right) */
+  content:"";
+  position:absolute; top:0; right:0;
+  width:36px; height:36px;
+  background:
+    linear-gradient(135deg, transparent 0 49%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.12) 100%);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  opacity:.6;
+}
+.arc-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(0,0,0,.35);
+  border-color: rgba(139,92,246,.45);
+}
+
+/* faixa de capa própria (sem foto por enquanto) */
+.arc-cover {
+  height: 120px;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.55)),
+    radial-gradient(70% 90% at 15% -10%, rgba(139,92,246,.28), transparent 60%),
+    radial-gradient(70% 90% at 120% 120%, rgba(34,227,168,.18), transparent 60%),
+    linear-gradient(135deg, #1f2640, #19202e);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  position: relative;
+}
+
+/* conteúdo */
+.arc-body { padding: 1rem; display:flex; flex-direction:column; gap:.5rem; }
+.arc-title {
+  font-family: "Cinzel", serif;
+  font-size: 1.05rem;
+  letter-spacing: .3px;
+  margin: 0;
+}
+.arc-badge {
+  display:inline-flex; align-items:center; gap:.4rem;
+  font-size:.75rem; font-weight:600; color: var(--muted);
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  padding:.25rem .6rem; border-radius: 999px;
+}
+
+/* botões com “anel” (ring) exclusivo */
+.btn-ring {
+  position: relative;
+  border: 1px solid rgba(255,255,255,.15);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 12px;
+  font-weight: 700;
+}
+.btn-ring::before {
+  content:""; position:absolute; inset:-2px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(139,92,246,.5), rgba(34,227,168,.5));
+  filter: blur(10px); opacity: 0; transition: opacity .18s ease;
+}
+.btn-ring:hover::before { opacity: .6; }
+.btn-ring:hover { border-color: rgba(139,92,246,.45); }
+
+.btn-primary { background: var(--primary); border: none; }
+.btn-aether  { background: var(--aether); border: none; color:#032118; }
+.btn-danger  { background: var(--danger); border: none; }
+
+/* estados vazios com nosso estilo */
+.empty {
+  background: var(--surface);
+  border: 1px dashed rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  padding: 2rem;
+  color: var(--muted);
+}
+
+
+.arc-cover[data-cover]:not([data-cover=""]) {
+  background-image: var(--cover-img);
+  background-size: cover;
+  background-position: center;
+}
