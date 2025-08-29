@@ -1,0 +1,32 @@
+# Node / Express
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+
+# Build / Coverage
+dist/
+build/
+coverage/
+
+# Ambiente / Segredos
+.env
+*.env
+.env.*.local
+
+# Uploads e artefatos
+public/uploads/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+*.log.*

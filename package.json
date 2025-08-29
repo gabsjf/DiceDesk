@@ -5,18 +5,22 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-     "dev": "\"C:\\Users\\gabriel.felix\\Downloads\\node-v22.18.0-win-x64\\node.exe\" --watch server.js",
-      "start": "\"C:\\Users\\gabriel.felix\\Downloads\\node-v22.18.0-win-x64\\node.exe\" server.js"
+    "dev": "\"C:\\\\Users\\\\gabriel.felix\\\\Downloads\\\\node-v22.18.0-win-x64\\\\node.exe\" --watch server.js",
+    "start": "\"C:\\\\Users\\\\gabriel.felix\\\\Downloads\\\\node-v22.18.0-win-x64\\\\node.exe\" server.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
     "csurf": "^1.11.0",
     "ejs": "^3.1.10",
-    "express": "^4.19.2",
+    "express": "^4.21.2",
     "express-ejs-layouts": "^2.5.1",
     "express-session": "^1.17.3",
     "express-validator": "^7.0.1",
     "morgan": "^1.10.0",
+    "multer": "^2.0.2",
     "uuid": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

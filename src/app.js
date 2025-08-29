@@ -1,18 +1,13 @@
 // src/app.js
 import express from "express";
 import path from "path";
-import session from "express-session";
 import cookieParser from "cookie-parser";
-import csurf from "csurf";
+import session from "express-session";
+import csrf from "csurf";
 import morgan from "morgan";
 import expressLayouts from "express-ejs-layouts";
 import dashboardRouter from "./routes/dashboard.routes.js";
-
-// ⚠️ Ajuste o import abaixo conforme o NOME do seu arquivo real:
-//   - Se for "campanhas.routes.js"  => "./routes/campanhas.routes.js"
-//   - Se for "campanhas.route.js"   => "./routes/campanhas.route.js"
 import campanhasRouter from "./routes/campanhas.routes.js";
-
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,49 +15,57 @@ const __dirname  = path.dirname(__filename);
 
 const app = express();
 
-// Logs
+/* Logs */
 app.use(morgan("dev"));
 
-// Views + Layouts (EJS)
+/* Arquivos estáticos (não precisam de CSRF) */
+const staticDir = path.resolve(__dirname, "../public");
+console.log("🟦 Servindo estáticos de:", staticDir);
+app.use(express.static(staticDir));
+
+/* Views + Layouts (EJS) */
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
 app.use(expressLayouts);
 app.set("layout", "_layout"); // usa src/views/_layout.ejs
 
-// Body parser
-app.use(express.urlencoded({ extended: true }));
-
-// Cookies, Sessão, CSRF
+/* Cookies, Sessão */
 app.use(cookieParser());
 app.use(session({
   secret: "troque-este-segredo",
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: false,
+  cookie: { sameSite: "lax" } // ajuste se usar domínios diferentes
 }));
-app.use(csurf());
 
-// Expor csrf e flash para as views
+/* Body parsers (antes do csurf para ler token do body) */
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+/* CSRF (habilitado) */
+app.use(csrf()); // por sessão; se preferir por cookie: csrf({ cookie: true })
+
+/* Expor csrf e flash para as views */
 app.use((req, res, next) => {
-  res.locals.csrfToken = req.csrfToken();
+  try {
+    res.locals.csrfToken = req.csrfToken();    // disponível em TODAS as views
+  } catch {
+    res.locals.csrfToken = "";
+  }
   res.locals.flash = req.session.flash || null;
   delete req.session.flash;
   next();
 });
 
-// Arquivos estáticos (public/)
-const staticDir = path.resolve(__dirname, "../public");
-console.log("🟦 Servindo estáticos de:", staticDir);
-app.use(express.static(staticDir));
-
-// Rotas
+/* Rotas */
 app.get("/", (req, res) => res.redirect("/dashboard"));
 app.use("/dashboard", dashboardRouter);
 app.use("/campanhas", campanhasRouter);
 
-// 404
+/* 404 */
 app.use((req, res) => res.status(404).send("Página não encontrada"));
 
-// Tratamento de erros (inclui CSRF)
+/* Tratamento de erros (inclui CSRF) */
 app.use((err, req, res, next) => {
   if (err.code === "EBADCSRFTOKEN") {
     return res.status(403).send("Falha de verificação CSRF.");

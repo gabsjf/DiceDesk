@@ -61,6 +61,8 @@ export const criarPost = [
 /* ===========================
  * DETALHES (GET)
  * =========================== */
+
+import { SessaoModel } from "../models/sessao.model.js";
 export function detalhes(req, res) {
   const campanha = CampanhaModel.obterPorId(req.params.id);
   if (!campanha) return res.status(404).send("Campanha não encontrada");
@@ -71,6 +73,8 @@ export function detalhes(req, res) {
     campanha
   });
 }
+
+
 
 /* ===========================
  * EDITAR (GET)
