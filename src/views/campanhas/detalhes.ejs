@@ -1,3 +1,4 @@
+=<!-- ========== DETALHES DA CAMPANHA ========== -->
 <div class="row g-4 justify-content-center">
   <div class="col-12">
     <div class="arc-card p-4 text-center">
@@ -84,7 +85,7 @@
   </div>
 </div>
 
-<!-- MODAL: Nova sessão -->
+<!-- ========== MODAL: Nova sessão ========== -->
 <div class="modal fade" id="modal-nova-sessao" tabindex="-1" aria-labelledby="modal-nova-sessao-label" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <form class="modal-content arc-card"
@@ -121,17 +122,20 @@
   </div>
 </div>
 
-<!-- MODAL: Notas (pastas + visibilidade) -->
+<!-- ========== MODAL: Notas (pastas + visibilidade) ========== -->
 <div class="modal fade" id="modal-notas" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content arc-card">
 
-      <!-- Header com botão de Tela Cheia -->
+      <!-- Header com Tela Cheia + Recolher Sidebar -->
       <div class="modal-header" style="background:var(--surface-2); border-bottom:1px solid rgba(255,255,255,.08);">
         <h5 class="modal-title d-flex align-items-center gap-2">
           <i class="bi bi-journal-text"></i><span id="notesModalTitle">Notas</span>
         </h5>
         <div class="d-flex align-items-center gap-2">
+          <button id="btnToggleSidebar" type="button" class="btn btn-ring btn-sm" title="Recolher/expandir pastas">
+            <i class="bi bi-layout-sidebar-inset"></i>
+          </button>
           <button id="btnToggleFullscreen" type="button" class="btn btn-ring btn-sm" title="Tela cheia">
             <i class="bi bi-arrows-fullscreen"></i>
           </button>
@@ -142,7 +146,7 @@
       <div class="modal-body p-0" style="background:var(--surface);">
         <div class="row g-0">
           <!-- Sidebar -->
-          <div class="col-12 col-md-4 border-end" style="border-color: rgba(255,255,255,.08) !important;">
+          <div id="notesSidebarCol" class="col-12 col-md-4 border-end" style="border-color: rgba(255,255,255,.08) !important;">
             <div class="p-3 d-flex justify-content-between align-items-center">
               <strong>Pastas</strong>
               <button class="btn btn-primary btn-sm" id="btnNovaPasta">
@@ -153,7 +157,7 @@
           </div>
 
           <!-- Editor -->
-          <div class="col-12 col-md-8">
+          <div id="notesEditorCol" class="col-12 col-md-8">
             <div class="p-3">
               <div id="notesEmpty" class="empty">
                 <i class="bi bi-file-earmark-text fs-1 d-block mb-2"></i>
@@ -191,11 +195,13 @@
 
       <div class="modal-footer" style="background:var(--surface); border-top:1px solid rgba(255,255,255,.08);">
         <div class="d-flex align-items-center gap-3 me-auto">
-          <label class="small text-muted">Visibilidade da pasta selecionada:</label>
-          <select id="folderVisibility" class="form-select form-select-sm" style="width:auto;">
-            <option value="private">Privado (só mestre)</option>
-            <option value="players">Visível aos jogadores</option>
-          </select>
+          <span class="small text-muted">Visibilidade da pasta:</span>
+          <!-- Toggle Público (desmarcado) ↔ Privado (marcado) -->
+          <div class="vis-toggle d-inline-flex align-items-center gap-2">
+            <i class="bi bi-people-fill text-muted small"></i>
+            <input type="checkbox" id="folderVisibility" class="vis-switch" />
+            <i class="bi bi-lock-fill text-muted small"></i>
+          </div>
         </div>
         <button class="btn btn-ring" data-bs-dismiss="modal">Fechar</button>
       </div>
@@ -204,7 +210,7 @@
   </div>
 </div>
 
-
+<!-- ========== SCRIPT do modal de Notas (inline UX + fullscreen + toggle + sidebar recolhível) ========== -->
 <script>
 (() => {
   // ===== Persistência por sessão =====
@@ -218,13 +224,21 @@
   let currentFolderId = null;
   let currentNoteId   = null;
 
+  // UI subestados
+  let renameFolderId = null;
+  let confirmDeleteFolderId = null;
+  let noteDeleteConfirm = false;
+
   // ===== Utils =====
   const uid  = () => Math.random().toString(36).slice(2, 10);
   const byId = (arr, id) => arr.find(x => x.id === id);
+  const escapeHtml = (s) => (s || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
   // ===== DOM =====
   const modalEl           = document.getElementById("modal-notas");
   const modalDialog       = modalEl.querySelector(".modal-dialog");
+  const modalContent      = modalEl.querySelector(".modal-content");
+  const btnSidebar        = document.getElementById("btnToggleSidebar");
   const btnFullscreen     = document.getElementById("btnToggleFullscreen");
 
   const notesModalTitle   = document.getElementById("notesModalTitle");
@@ -239,13 +253,35 @@
   const noteTitleInput    = document.getElementById("noteTitle");
   const editorMount       = document.getElementById("noteEditorMount");
 
+  // Toggle público/privado: checked = private, unchecked = players
+  const getVisibility = () => (folderVisibility.checked ? "private" : "players");
+  const setVisibility = (v) => { folderVisibility.checked = (v !== "players"); };
+
+  // Sidebar collapsed (persistência por usuário)
+  const uiKeySidebar = "dd:notes:ui:sidebarCollapsed";
+  function setSidebarCollapsed(collapsed) {
+    modalContent.classList.toggle("sidebar-hidden", collapsed);
+    localStorage.setItem(uiKeySidebar, JSON.stringify(!!collapsed));
+    const i = btnSidebar.querySelector("i");
+    if (collapsed) {
+      i.classList.remove("bi-layout-sidebar-inset");
+      i.classList.add("bi-layout-sidebar");
+      btnSidebar.setAttribute("aria-pressed", "true");
+    } else {
+      i.classList.remove("bi-layout-sidebar");
+      i.classList.add("bi-layout-sidebar-inset");
+      btnSidebar.setAttribute("aria-pressed", "false");
+    }
+    setTimeout(resizeEditor, 10);
+  }
+
   // ===== Editor (Toast UI) =====
   let editor = null;
   function ensureEditor() {
     if (editor) return editor;
     editor = new toastui.Editor({
       el: editorMount,
-      height: "60vh",                 // maior por padrão
+      height: "60vh",
       initialEditType: "wysiwyg",
       previewStyle: "vertical",
       theme: "dark",
@@ -262,18 +298,12 @@
       ],
       hooks: {
         addImageBlobHook: async (blob, cb) => {
-          const url = URL.createObjectURL(blob);
-          cb(url, blob.name || "imagem");
-          return false;
+          const url = URL.createObjectURL(blob); cb(url, blob.name || "imagem"); return false;
         }
       }
     });
-    // Ctrl/Cmd+Enter => salvar
     const onSaveShortcut = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        btnSalvarNota.click();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); btnSalvarNota.click(); }
     };
     editor.getEditorElements().mdEditor?.addEventListener?.("keydown", onSaveShortcut, true);
     editor.getEditorElements().wwEditor?.addEventListener?.("keydown", onSaveShortcut, true);
@@ -282,31 +312,46 @@
 
   function resizeEditor() {
     if (!editor) return;
-    // calcula altura útil dentro do modal (header + footer)
     const header = modalEl.querySelector(".modal-header")?.offsetHeight || 0;
     const footer = modalEl.querySelector(".modal-footer")?.offsetHeight || 0;
-    const verticalPadding = 32; // respiro
     const vh = window.innerHeight;
-    const h = Math.max(320, vh - header - footer - verticalPadding - 40); // 40 ~ margens internas
+    const h = Math.max(320, vh - header - footer - 72);
     editor.setHeight(`${h}px`);
   }
 
-  // ===== UI Helpers =====
   function showEmpty(){ notesEmpty.classList.remove("d-none"); notesEditorWrap.classList.add("d-none"); }
   function showEditor(){ notesEmpty.classList.add("d-none"); notesEditorWrap.classList.remove("d-none"); }
+
+  function createFolder(name, visibility = "private") {
+    const f = { id: uid(), name: (name || "Nova pasta").trim() || "Nova pasta", visibility, notes: [] };
+    state.folders.push(f); save(currentSessionId, state); return f;
+  }
+  function ensureActiveFolder() {
+    if (!state.folders.length) {
+      const f = createFolder("Geral", getVisibility()); currentFolderId = f.id;
+    } else if (!currentFolderId) {
+      currentFolderId = state.folders[0].id;
+    }
+  }
+  function createNoteInFolder(fid) {
+    const f = byId(state.folders, fid); if (!f) return null;
+    const note = { id: uid(), title: "Nova nota", content: "" };
+    f.notes.unshift(note); save(currentSessionId, state); return note;
+  }
 
   function renderTree() {
     notesTree.innerHTML = "";
     if (!state.folders.length) {
       notesTree.innerHTML = `<div class="text-muted small px-2 pb-3">Sem pastas. Clique em <b>Nova pasta</b> ou crie uma nota.</div>`;
-      currentFolderId = null; currentNoteId = null;
-      showEmpty();
-      return;
+      currentFolderId = null; currentNoteId = null; showEmpty(); return;
     }
 
     state.folders.forEach(f => {
       const isActive = f.id === currentFolderId;
+      const isRenaming = f.id === renameFolderId;
+      const isConfirmDel = f.id === confirmDeleteFolderId;
       const badge = f.visibility === "private" ? "🔒" : "👥";
+
       const wrap = document.createElement("div");
       wrap.className = "mb-2";
       wrap.innerHTML = `
@@ -315,13 +360,30 @@
              style="padding:.45rem .5rem; border-radius:10px; cursor:pointer; background:${isActive ? 'rgba(255,255,255,.06)' : 'transparent'}">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-folder2"></i>
-            <strong class="folder-name">${f.name}</strong>
+            ${isRenaming
+              ? `<input data-folder-name-input class="form-control form-control-sm" value="${escapeHtml(f.name)}" style="max-width:70%;"></input>`
+              : `<strong class="folder-name">${escapeHtml(f.name)}</strong>`
+            }
             <span class="badge bg-secondary">${badge}</span>
           </div>
           <div class="d-flex align-items-center gap-1">
-            <button class="btn btn-sm btn-ring" data-add-note-folder title="Nova nota nesta pasta"><i class="bi bi-file-earmark-plus"></i></button>
-            <button class="btn btn-sm btn-ring" data-rename-folder title="Renomear"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-danger btn-ring" data-delete-folder title="Apagar pasta"><i class="bi bi-trash"></i></button>
+            ${
+              isRenaming
+              ? `
+                <button class="btn btn-sm btn-primary" data-save-rename-folder title="Salvar"><i class="bi bi-check2"></i></button>
+                <button class="btn btn-sm btn-ring" data-cancel-rename-folder title="Cancelar"><i class="bi bi-x-lg"></i></button>
+              `
+              : isConfirmDel
+                ? `
+                  <button class="btn btn-sm btn-danger" data-confirm-delete-folder title="Confirmar"><i class="bi bi-check2"></i></button>
+                  <button class="btn btn-sm btn-ring" data-cancel-delete-folder title="Cancelar"><i class="bi bi-x-lg"></i></button>
+                `
+                : `
+                  <button class="btn btn-sm btn-ring" data-add-note-folder title="Nova nota nesta pasta"><i class="bi bi-file-earmark-plus"></i></button>
+                  <button class="btn btn-sm btn-ring" data-start-rename-folder title="Renomear"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-sm btn-danger" data-delete-folder title="Apagar pasta"><i class="bi bi-trash"></i></button>
+                `
+            }
           </div>
         </div>
         <div class="mt-1 ps-4" data-notes-of="${f.id}">
@@ -329,68 +391,42 @@
             <div class="note-item ${n.id === currentNoteId ? 'active' : ''}"
                  data-note-id="${n.id}"
                  style="padding:.35rem .5rem; border-radius:8px; cursor:pointer; ${n.id === currentNoteId ? 'background:rgba(255,255,255,.04)' : ''}">
-              <i class="bi bi-file-earmark-text me-1"></i><span class="note-title">${n.title || "(sem título)"}</span>
+              <i class="bi bi-file-earmark-text me-1"></i><span class="note-title">${escapeHtml(n.title || "(sem título)")}</span>
             </div>
           `).join("")}
         </div>
       `;
       notesTree.appendChild(wrap);
     });
+
+    // foco input renomeio
+    if (renameFolderId) {
+      const input = notesTree.querySelector(`[data-folder-id="${renameFolderId}"] [data-folder-name-input]`);
+      if (input) { input.focus(); input.select(); }
+    }
   }
 
   function openNote(n) {
     ensureEditor();
     noteTitleInput.value = n.title || "";
     editor.setMarkdown(n.content || "");
-    showEditor();
-    resizeEditor();
+    showEditor(); resizeEditor();
   }
 
-  // ===== CRUD =====
-  function createFolder(name, visibility = "private") {
-    const f = { id: uid(), name: (name || "Nova pasta").trim() || "Nova pasta", visibility, notes: [] };
-    state.folders.push(f);
-    save(currentSessionId, state);
-    return f;
-  }
-  function ensureActiveFolder() {
-    if (!state.folders.length) {
-      const f = createFolder("Geral", folderVisibility.value || "private");
-      currentFolderId = f.id;
-    } else if (!currentFolderId) {
-      currentFolderId = state.folders[0].id;
-    }
-  }
-  function createNoteInFolder(fid) {
-    const f = byId(state.folders, fid);
-    if (!f) return null;
-    const note = { id: uid(), title: "Nova nota", content: "" };
-    f.notes.unshift(note);
-    save(currentSessionId, state);
-    return note;
-  }
-
-  // ===== Botões principais =====
+  // ===== Ações principais =====
   btnNovaPasta.addEventListener("click", (e) => {
     e.preventDefault();
-    const name = prompt("Nome da pasta:");
-    if (name === null) return;
-    const f = createFolder(name, folderVisibility.value || "private");
-    currentFolderId = f.id;
-    currentNoteId = null;
-    renderTree();
-    showEmpty();
+    const f = createFolder("Nova pasta", getVisibility());
+    currentFolderId = f.id; currentNoteId = null;
+    renameFolderId = f.id; confirmDeleteFolderId = null;
+    renderTree(); showEmpty();
   });
 
-  // 🔧 Corrigido: “Nova nota” global sempre cria (mesmo sem pasta) e abre a nota
   btnNovaNota.addEventListener("click", (e) => {
     e.preventDefault();
     ensureActiveFolder();
-    const note = createNoteInFolder(currentFolderId);
-    if (!note) return;
-    currentNoteId = note.id;
-    renderTree();
-    openNote(note);
+    const note = createNoteInFolder(currentFolderId); if (!note) return;
+    currentNoteId = note.id; renderTree(); openNote(note);
   });
 
   btnSalvarNota.addEventListener("click", (e) => {
@@ -400,154 +436,161 @@
     const n = byId(f.notes, currentNoteId);
     n.title   = (noteTitleInput.value || "").trim() || "(sem título)";
     n.content = editor ? editor.getMarkdown() : "";
-    save(currentSessionId, state);
-    renderTree();
+    save(currentSessionId, state); renderTree();
   });
 
+  // Apagar nota (2 cliques)
   btnApagarNota.addEventListener("click", (e) => {
     e.preventDefault();
     if (!currentFolderId || !currentNoteId) return;
-    if (!confirm("Apagar esta nota?")) return;
+    if (!noteDeleteConfirm) {
+      noteDeleteConfirm = true;
+      btnApagarNota.classList.remove("btn-danger"); btnApagarNota.classList.add("btn-warning");
+      btnApagarNota.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Confirmar';
+      setTimeout(() => {
+        if (!noteDeleteConfirm) return;
+        noteDeleteConfirm = false;
+        btnApagarNota.classList.remove("btn-warning"); btnApagarNota.classList.add("btn-danger");
+        btnApagarNota.innerHTML = '<i class="bi bi-trash me-1"></i> Apagar nota';
+      }, 3000);
+      return;
+    }
     const f = byId(state.folders, currentFolderId);
     const idx = f.notes.findIndex(n => n.id === currentNoteId);
     if (idx >= 0) f.notes.splice(idx, 1);
-    currentNoteId = null;
-    save(currentSessionId, state);
-    renderTree();
-    showEmpty();
+    currentNoteId = null; noteDeleteConfirm = false;
+    btnApagarNota.classList.remove("btn-warning"); btnApagarNota.classList.add("btn-danger");
+    btnApagarNota.innerHTML = '<i class="bi bi-trash me-1"></i> Apagar nota';
+    save(currentSessionId, state); renderTree(); showEmpty();
   });
 
+  // Toggle visibilidade
   folderVisibility.addEventListener("change", () => {
     if (!currentFolderId) return;
     const f = byId(state.folders, currentFolderId);
-    f.visibility = folderVisibility.value;
+    f.visibility = getVisibility();
     save(currentSessionId, state);
     renderTree();
   });
 
-  // ===== Delegação na árvore =====
+  // Delegação na árvore: ações inline
   notesTree.addEventListener("click", (e) => {
-    const addNoteBtn = e.target.closest("[data-add-note-folder]");
-    const renameBtn  = e.target.closest("[data-rename-folder]");
-    const deleteBtn  = e.target.closest("[data-delete-folder]");
-    const noteDiv    = e.target.closest("[data-note-id]");
     const folderItem = e.target.closest("[data-folder-id]");
+    const fid = folderItem?.getAttribute("data-folder-id");
 
-    if (addNoteBtn) {
+    if (e.target.closest("[data-add-note-folder]")) {
       e.preventDefault();
-      const row = addNoteBtn.closest("[data-folder-id]");
-      const fid = row?.getAttribute("data-folder-id");
-      currentFolderId = fid;
-      const note = createNoteInFolder(fid);
-      currentNoteId = note.id;
-      renderTree();
-      openNote(note);
-      return;
+      currentFolderId = fid; const note = createNoteInFolder(fid);
+      currentNoteId = note.id; renderTree(); openNote(note); return;
     }
-
-    if (renameBtn) {
-      e.preventDefault();
-      const row = renameBtn.closest("[data-folder-id]");
-      const fid = row?.getAttribute("data-folder-id");
-      const f = byId(state.folders, fid);
-      if (!f) return;
-      const novo = prompt("Novo nome da pasta:", f.name);
-      if (novo === null) return;
-      f.name = (novo || "").trim() || f.name;
-      save(currentSessionId, state);
-      renderTree();
-      return;
+    if (e.target.closest("[data-start-rename-folder]")) {
+      e.preventDefault(); renameFolderId = fid; confirmDeleteFolderId = null; renderTree(); return;
     }
-
-    if (deleteBtn) {
+    if (e.target.closest("[data-save-rename-folder]")) {
       e.preventDefault();
-      const row = deleteBtn.closest("[data-folder-id]");
-      const fid = row?.getAttribute("data-folder-id");
+      const input = folderItem.querySelector("[data-folder-name-input]");
+      const val = (input?.value || "").trim() || "Nova pasta";
+      const f = byId(state.folders, fid); f.name = val;
+      renameFolderId = null; save(currentSessionId, state); renderTree(); return;
+    }
+    if (e.target.closest("[data-cancel-rename-folder]")) {
+      e.preventDefault(); renameFolderId = null; renderTree(); return;
+    }
+    if (e.target.closest("[data-delete-folder]")) {
+      e.preventDefault(); confirmDeleteFolderId = fid; renameFolderId = null; renderTree(); return;
+    }
+    if (e.target.closest("[data-confirm-delete-folder]")) {
+      e.preventDefault();
       const idx = state.folders.findIndex(x => x.id === fid);
-      if (idx < 0) return;
-      if (!confirm("Apagar pasta e TODAS as notas dentro dela?")) return;
-      const wasCurrent = (fid === currentFolderId);
-      state.folders.splice(idx, 1);
-      if (wasCurrent) { currentFolderId = state.folders[0]?.id || null; currentNoteId = null; }
-      save(currentSessionId, state);
-      renderTree();
-      if (!currentFolderId) showEmpty();
-      return;
+      if (idx >= 0) state.folders.splice(idx, 1);
+      if (currentFolderId === fid) { currentFolderId = state.folders[0]?.id || null; currentNoteId = null; }
+      confirmDeleteFolderId = null; save(currentSessionId, state); renderTree(); if (!currentFolderId) showEmpty(); return;
+    }
+    if (e.target.closest("[data-cancel-delete-folder]")) {
+      e.preventDefault(); confirmDeleteFolderId = null; renderTree(); return;
     }
 
+    // selecionar pasta
+    if (folderItem && !e.target.closest("[data-notes-of]")) {
+      e.preventDefault();
+      currentFolderId = fid; currentNoteId = null;
+      const f = byId(state.folders, currentFolderId);
+      if (f) setVisibility(f.visibility || "private");
+      renderTree(); showEmpty(); return;
+    }
+
+    // selecionar nota
+    const noteDiv = e.target.closest("[data-note-id]");
     if (noteDiv) {
       e.preventDefault();
       const nid = noteDiv.getAttribute("data-note-id");
       const parentFolder = noteDiv.closest("[data-notes-of]");
-      const fid = parentFolder?.getAttribute("data-notes-of");
-      if (fid && currentFolderId !== fid) currentFolderId = fid;
+      const pfid = parentFolder?.getAttribute("data-notes-of");
+      if (pfid && currentFolderId !== pfid) currentFolderId = pfid;
       const f = byId(state.folders, currentFolderId);
       const n = byId(f.notes, nid);
-      currentNoteId = nid;
-      openNote(n);
-      renderTree();
-      return;
-    }
-
-    if (folderItem) {
-      e.preventDefault();
-      const fid = folderItem.getAttribute("data-folder-id");
-      currentFolderId = fid;
-      currentNoteId = null;
-      const f = byId(state.folders, currentFolderId);
-      if (f) folderVisibility.value = f.visibility || "private";
-      renderTree();
-      showEmpty();
-      return;
+      currentNoteId = nid; openNote(n); renderTree(); return;
     }
   });
 
-  // ===== Fullscreen do modal (Bootstrap) + resize do editor =====
-  btnFullscreen.addEventListener("click", () => {
-    modalDialog.classList.toggle("modal-fullscreen"); // classe nativa do BS5
-    // troca ícone
+  // Enter/Esc no rename + salvar no blur
+  notesTree.addEventListener("keydown", (e) => {
+    const input = e.target.closest("[data-folder-name-input]");
+    if (!input) return;
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    else if (e.key === "Escape") { e.preventDefault(); renameFolderId = null; renderTree(); }
+  });
+  notesTree.addEventListener("blur", (e) => {
+    const input = e.target.closest("[data-folder-name-input]"); if (!input) return;
+    const row = input.closest("[data-folder-id]"); const fid = row?.getAttribute("data-folder-id");
+    const f = byId(state.folders, fid); if (!f) return;
+    const val = (input.value || "").trim(); if (val) { f.name = val; save(currentSessionId, state); }
+    renameFolderId = null; renderTree();
+  }, true);
+
+  // Fullscreen + resize
+  btnFullscreen?.addEventListener("click", () => {
+    modalDialog.classList.toggle("modal-fullscreen");
     const i = btnFullscreen.querySelector("i");
-    if (modalDialog.classList.contains("modal-fullscreen")) {
-      i.classList.remove("bi-arrows-fullscreen");
-      i.classList.add("bi-fullscreen-exit");
-    } else {
-      i.classList.remove("bi-fullscreen-exit");
-      i.classList.add("bi-arrows-fullscreen");
-    }
+    if (modalDialog.classList.contains("modal-fullscreen")) { i.classList.replace("bi-arrows-fullscreen", "bi-fullscreen-exit"); }
+    else { i.classList.replace("bi-fullscreen-exit", "bi-arrows-fullscreen"); }
     setTimeout(resizeEditor, 10);
+  });
+
+  // Recolher/expandir sidebar
+  btnSidebar?.addEventListener("click", () => {
+    const collapsed = modalContent.classList.contains("sidebar-hidden");
+    setSidebarCollapsed(!collapsed);
   });
 
   window.addEventListener("resize", () => { if (editor && modalEl.classList.contains("show")) resizeEditor(); });
 
-  // ===== Inicializa ao abrir o modal =====
+  // Init ao abrir
   modalEl.addEventListener("show.bs.modal", (ev) => {
-    const trigger = ev.relatedTarget || document.activeElement;
-    if (!trigger) return;
-
+    const trigger = ev.relatedTarget || document.activeElement; if (!trigger) return;
     const sid = trigger.getAttribute("data-session-id");
-    const title = trigger.getAttribute("data-session-title") || "Notas";
-    if (!sid) return;
+    const title = trigger.getAttribute("data-session-title") || "Notas"; if (!sid) return;
 
-    currentSessionId = sid;
-    notesModalTitle.textContent = `Notas — ${title}`;
-
+    currentSessionId = sid; notesModalTitle.textContent = `Notas — ${title}`;
     state = load(currentSessionId);
-    currentFolderId = state.folders[0]?.id || null;
-    currentNoteId = null;
+    currentFolderId = state.folders[0]?.id || null; currentNoteId = null;
 
-    // (re)cria o editor “limpo” ao abrir
+    // reset subestados
+    renameFolderId = null; confirmDeleteFolderId = null; noteDeleteConfirm = false;
+
     if (editor) { editor.destroy(); editor = null; }
     ensureEditor();
 
     if (currentFolderId) {
       const f = byId(state.folders, currentFolderId);
-      folderVisibility.value = f.visibility || "private";
+      setVisibility(f.visibility || "private");
     }
+    renderTree(); if (!currentFolderId) showEmpty();
 
-    renderTree();
-    if (!currentFolderId) showEmpty();
+    // aplica estado salvo da sidebar
+    const savedCollapsed = JSON.parse(localStorage.getItem(uiKeySidebar) || "false");
+    setSidebarCollapsed(!!savedCollapsed);
 
-    // primeiro resize após abrir
     setTimeout(resizeEditor, 10);
   });
 })();
