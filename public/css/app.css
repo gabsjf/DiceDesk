@@ -330,3 +330,65 @@ body::before {
     margin-left: 260px;
     transition: margin-left 0.3s ease-in-out;
 }
+
+
+/* Toast UI editor no tema do app */
+.tui-editor-wrapper .toastui-editor-defaultUI {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+}
+.tui-editor-wrapper .toastui-editor-defaultUI-toolbar {
+  background: var(--surface-2);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.tui-editor-wrapper .toastui-editor-contents {
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  line-height: 1.6;
+}
+/* Títulos mais “Notion-like” */
+.tui-editor-wrapper .toastui-editor-contents h1,
+.tui-editor-wrapper .toastui-editor-contents h2,
+.tui-editor-wrapper .toastui-editor-contents h3 {
+  font-family: 'Cinzel', serif;
+  letter-spacing: .2px;
+}
+
+/* Bloquinhos mais legíveis */
+.tui-editor-wrapper .toastui-editor-contents blockquote {
+  border-left: 3px solid var(--primary);
+  background: rgba(139, 92, 246, .08);
+}
+.tui-editor-wrapper .toastui-editor-contents code {
+  background: rgba(255,255,255,.06);
+  border-radius: 6px;
+  padding: .1rem .35rem;
+}
+.tui-editor-wrapper .toastui-editor-contents pre {
+  background: #0b0f16;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+}
+
+/* Ajuste de botões no dark */
+.tui-editor-wrapper .toastui-editor-toolbar-icons {
+  filter: none; /* ícones já claros no tema dark */
+}
+
+
+/* Modal fullscreen deve ocupar bem a área */
+#modal-notas .modal-dialog.modal-fullscreen .toastui-editor-defaultUI {
+  border-radius: 0;
+}
+
+/* Largura máxima confortável no editor (quando não estiver fullscreen) */
+#modal-notas .toastui-editor-defaultUI {
+  max-width: 100%;
+}
+
+/* Melhor contraste nos blocos */
+.tui-editor-wrapper .toastui-editor-contents blockquote {
+  border-left: 3px solid var(--primary);
+  background: rgba(139, 92, 246, .08);
+}

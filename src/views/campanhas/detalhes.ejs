@@ -1,106 +1,554 @@
 <div class="row g-4 justify-content-center">
-    <div class="col-12">
-        <div class="arc-card p-4 text-center">
-            <h2 class="arc-title" style="font-size: 2rem;"><%= campanha.nome %></h2>
+  <div class="col-12">
+    <div class="arc-card p-4 text-center">
+      <h2 class="arc-title" style="font-size: 2rem;"><%= campanha.nome %></h2>
 
-            <div class="arc-detail-cover my-4"
-                data-cover="<%= campanha.capaUrl || '' %>">
-            </div>
+      <div class="arc-detail-cover my-4"
+        <% if (campanha.capaUrl) { %>
+          style="background-image:url('<%= campanha.capaUrl %>'); background-size:cover; background-position:center;"
+        <% } %>
+      ></div>
 
-            <p class="text-muted small mb-0">
-                <i class="bi bi-dice-5 me-1"></i><%= campanha.sistema %>
-                <% if (campanha.descricao) { %> · <%= campanha.descricao %> <% } %>
-            </p>
-        </div>
+      <p class="text-muted mb-0">
+        <i class="bi bi-dice-5 me-1"></i><%= campanha.sistema %>
+        <% if (campanha.descricao) { %> · <%= campanha.descricao %> <% } %>
+      </p>
     </div>
+  </div>
 </div>
 
 <div class="row g-4 mt-2">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="h6 text-uppercase text-muted m-0">Sessões</h3>
-            <a href="#" class="btn btn-primary btn-ring" data-bs-toggle="modal" data-bs-target="#modal-nova-sessao">
-                <i class="bi bi-plus-lg me-1"></i> Registrar nova sessão
-            </a>
-        </div>
-
-        <% if (!campanha.sessoes || campanha.sessoes.length === 0) { %>
-            <div class="empty">
-                <p class="mb-0">Nenhuma sessão registrada ainda.</p>
-            </div>
-        <% } else { %>
-            <div class="row g-4">
-                <% campanha.sessoes.forEach(sessao => { %>
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <div class="arc-card h-100 d-flex flex-column">
-                            <div class="arc-cover" data-cover="<%= sessao.capaUrl || '' %>"></div>
-                            <div class="arc-body d-flex flex-column">
-                                <h4 class="arc-title"><%= sessao.titulo || sessao.nome %></h4>
-                                <div class="text-muted small mb-2">
-                                    <i class="bi bi-clock me-1"></i>
-                                    <%= sessao.createdAt ? new Date(sessao.createdAt).toLocaleString() : '' %>
-                                </div>
-                                <div class="mt-auto d-flex gap-2">
-                                    <a class="btn btn-primary flex-fill" href="#">
-                                        <i class="bi bi-play-fill me-1"></i> Abrir
-                                    </a>
-                                    <form action="/campanhas/<%= campanha.id %>/sessoes/<%= sessao.id %>/apagar" method="post" onsubmit="return confirm('Tem certeza?');">
-                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-                                        <button class="btn btn-danger btn-ring" title="Apagar"><i class="bi bi-trash"></i></button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                <% }) %>
-            </div>
-        <% } %>
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3 class="h6 text-uppercase text-muted m-0">Sessões</h3>
+      <a href="#" class="btn btn-primary btn-ring" data-bs-toggle="modal" data-bs-target="#modal-nova-sessao">
+        <i class="bi bi-plus-lg me-1"></i> Registrar nova sessão
+      </a>
     </div>
+
+    <% if (!campanha.sessoes || campanha.sessoes.length === 0) { %>
+      <div class="empty">
+        <p class="mb-0">Nenhuma sessão registrada ainda.</p>
+      </div>
+    <% } else { %>
+      <div class="row g-4">
+        <% campanha.sessoes.forEach(sessao => { %>
+          <div class="col-12 col-md-6 col-lg-3">
+            <div class="arc-card h-100 d-flex flex-column">
+              <div class="arc-cover"
+                <% if (sessao.capaUrl) { %>
+                  style="--cover-img:url('<%= sessao.capaUrl %>');"
+                <% } %>
+              ></div>
+
+              <div class="arc-body d-flex flex-column">
+                <h4 class="arc-title"><%= sessao.titulo || sessao.nome %></h4>
+                <div class="text-muted small mb-2">
+                  <i class="bi bi-clock me-1"></i>
+                  <%= sessao.createdAt ? new Date(sessao.createdAt).toLocaleString() : '' %>
+                </div>
+
+                <div class="mt-auto d-flex gap-2">
+                  <!-- Jogar -->
+                  <a class="btn btn-primary flex-fill" href="/sessoes/<%= sessao.id %>">
+                    <i class="bi bi-controller me-1"></i> Jogar
+                  </a>
+
+                  <!-- Notas -->
+                  <button type="button"
+                          class="btn btn-ring"
+                          title="Notas"
+                          data-notes-btn
+                          data-session-id="<%= sessao.id %>"
+                          data-session-title="<%= sessao.titulo || sessao.nome %>"
+                          data-bs-toggle="modal"
+                          data-bs-target="#modal-notas">
+                    <i class="bi bi-journal-text"></i>
+                  </button>
+
+                  <!-- Apagar -->
+                  <form action="/campanhas/<%= campanha.id %>/sessoes/<%= sessao.id %>/apagar" method="post">
+                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+                    <button class="btn btn-danger btn-ring" title="Apagar"
+                            onclick="return confirm('Apagar esta sessão?');">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
 </div>
 
+<!-- MODAL: Nova sessão -->
 <div class="modal fade" id="modal-nova-sessao" tabindex="-1" aria-labelledby="modal-nova-sessao-label" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content arc-card"
-              id="form-nova-sessao"
-              action="/campanhas/<%= campanha.id %>/sessoes"
-              method="post"
-              enctype="multipart/form-data">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-            <div class="modal-header border-bottom-0" style="background:var(--surface-2);">
-                <h5 class="modal-title" id="modal-nova-sessao-label" style="font-family:'Cinzel',serif;">A sessão vai rolar!</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body" style="background:var(--surface);">
-                <div class="mb-3">
-                    <label for="sessao-nome" class="form-label text-muted small text-uppercase fw-bold">Nome da Sessão</label>
-                    <input type="text" class="form-control" id="sessao-nome" name="nome" required>
-                </div>
-                <div class="mb-3">
-                    <label for="sessao-imagem" class="form-label text-muted small text-uppercase fw-bold">Imagem da Sessão</label>
-                    <input class="form-control" type="file" id="sessao-imagem" name="imagem" accept="image/*">
-                    <div class="form-text text-muted">JPG/PNG; a imagem aparecerá no card.</div>
-                </div>
-            </div>
-            <div class="modal-footer" style="background:var(--surface); border-top:1px solid rgba(255,255,255,.08);">
-                <button type="button" class="btn btn-ring" data-bs-dismiss="modal">Cancelar</button>
-                <button class="btn btn-primary btn-ring">Confirmar</button>
-            </div>
-        </form>
-    </div>
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content arc-card"
+          id="form-nova-sessao"
+          action="/campanhas/<%= campanha.id %>/sessoes"
+          method="post"
+          enctype="multipart/form-data">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+
+      <div class="modal-header border-bottom-0" style="background:var(--surface-2);">
+        <h5 class="modal-title" id="modal-nova-sessao-label" style="font-family:'Cinzel',serif;">A sessão vai rolar!</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+
+      <div class="modal-body" style="background:var(--surface);">
+        <div class="mb-3">
+          <label for="sessao-nome" class="form-label text-muted small text-uppercase fw-bold">Nome da Sessão</label>
+          <input type="text" class="form-control" id="sessao-nome" name="nome" required>
+          <% if (errors && errors.nome) { %>
+            <div class="text-danger small mt-1"><%= errors.nome.msg %></div>
+          <% } %>
+        </div>
+        <div class="mb-3">
+          <label for="sessao-imagem" class="form-label text-muted small text-uppercase fw-bold">Imagem da Sessão (opcional)</label>
+          <input class="form-control" type="file" id="sessao-imagem" name="imagem" accept="image/*">
+        </div>
+      </div>
+
+      <div class="modal-footer" style="background:var(--surface); border-top:1px solid rgba(255,255,255,.08);">
+        <button type="button" class="btn btn-ring" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-ring">Confirmar</button>
+      </div>
+    </form>
+  </div>
 </div>
+
+<!-- MODAL: Notas (pastas + visibilidade) -->
+<div class="modal fade" id="modal-notas" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content arc-card">
+
+      <!-- Header com botão de Tela Cheia -->
+      <div class="modal-header" style="background:var(--surface-2); border-bottom:1px solid rgba(255,255,255,.08);">
+        <h5 class="modal-title d-flex align-items-center gap-2">
+          <i class="bi bi-journal-text"></i><span id="notesModalTitle">Notas</span>
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+          <button id="btnToggleFullscreen" type="button" class="btn btn-ring btn-sm" title="Tela cheia">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-0" style="background:var(--surface);">
+        <div class="row g-0">
+          <!-- Sidebar -->
+          <div class="col-12 col-md-4 border-end" style="border-color: rgba(255,255,255,.08) !important;">
+            <div class="p-3 d-flex justify-content-between align-items-center">
+              <strong>Pastas</strong>
+              <button class="btn btn-primary btn-sm" id="btnNovaPasta">
+                <i class="bi bi-folder-plus me-1"></i> Nova pasta
+              </button>
+            </div>
+            <div id="notesTree" class="px-2 pb-3" style="max-height:60vh; overflow:auto;"></div>
+          </div>
+
+          <!-- Editor -->
+          <div class="col-12 col-md-8">
+            <div class="p-3">
+              <div id="notesEmpty" class="empty">
+                <i class="bi bi-file-earmark-text fs-1 d-block mb-2"></i>
+                <p class="mb-2">Selecione uma nota para começar a editar</p>
+                <button class="btn btn-primary" id="btnNovaNota">
+                  <i class="bi bi-plus-lg me-1"></i> Nova nota
+                </button>
+              </div>
+
+              <div id="notesEditor" class="d-none">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <input id="noteTitle" class="form-control form-control-lg me-2" placeholder="Título da nota">
+                  <button id="btnSalvarNota" class="btn btn-primary">
+                    <i class="bi bi-check2 me-1"></i> Salvar
+                  </button>
+                </div>
+
+                <!-- Mount point do editor WYSIWYG -->
+                <div id="noteEditorMount" class="tui-editor-wrapper"></div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <div class="form-text text-muted">
+                    Dica: use <kbd>/</kbd> para explorar a toolbar; <kbd>Ctrl/Cmd</kbd>+<kbd>Enter</kbd> salva.
+                  </div>
+                  <button id="btnApagarNota" class="btn btn-danger btn-sm">
+                    <i class="bi bi-trash me-1"></i> Apagar nota
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="background:var(--surface); border-top:1px solid rgba(255,255,255,.08);">
+        <div class="d-flex align-items-center gap-3 me-auto">
+          <label class="small text-muted">Visibilidade da pasta selecionada:</label>
+          <select id="folderVisibility" class="form-select form-select-sm" style="width:auto;">
+            <option value="private">Privado (só mestre)</option>
+            <option value="players">Visível aos jogadores</option>
+          </select>
+        </div>
+        <button class="btn btn-ring" data-bs-dismiss="modal">Fechar</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        function applyCoverImages() {
-            document.querySelectorAll('[data-cover]').forEach(el => {
-                const url = el.getAttribute('data-cover');
-                if (url) {
-                    el.style.backgroundImage = `url('${url}')`;
-                    el.style.backgroundSize = 'cover';
-                    el.style.backgroundPosition = 'center';
-                }
-            });
+(() => {
+  // ===== Persistência por sessão =====
+  const key  = (sid) => `dd:notes:${sid}`;
+  const load = (sid) => { try { return JSON.parse(localStorage.getItem(key(sid)) || '{"folders":[]}'); } catch { return { folders: [] }; } };
+  const save = (sid, data) => localStorage.setItem(key(sid), JSON.stringify(data));
+
+  // ===== State =====
+  let currentSessionId = null;
+  let state = null;       // { folders:[{id,name,visibility, notes:[{id,title,content}]}] }
+  let currentFolderId = null;
+  let currentNoteId   = null;
+
+  // ===== Utils =====
+  const uid  = () => Math.random().toString(36).slice(2, 10);
+  const byId = (arr, id) => arr.find(x => x.id === id);
+
+  // ===== DOM =====
+  const modalEl           = document.getElementById("modal-notas");
+  const modalDialog       = modalEl.querySelector(".modal-dialog");
+  const btnFullscreen     = document.getElementById("btnToggleFullscreen");
+
+  const notesModalTitle   = document.getElementById("notesModalTitle");
+  const notesTree         = document.getElementById("notesTree");
+  const notesEmpty        = document.getElementById("notesEmpty");
+  const notesEditorWrap   = document.getElementById("notesEditor");
+  const btnNovaPasta      = document.getElementById("btnNovaPasta");
+  const btnNovaNota       = document.getElementById("btnNovaNota");
+  const btnSalvarNota     = document.getElementById("btnSalvarNota");
+  const btnApagarNota     = document.getElementById("btnApagarNota");
+  const folderVisibility  = document.getElementById("folderVisibility");
+  const noteTitleInput    = document.getElementById("noteTitle");
+  const editorMount       = document.getElementById("noteEditorMount");
+
+  // ===== Editor (Toast UI) =====
+  let editor = null;
+  function ensureEditor() {
+    if (editor) return editor;
+    editor = new toastui.Editor({
+      el: editorMount,
+      height: "60vh",                 // maior por padrão
+      initialEditType: "wysiwyg",
+      previewStyle: "vertical",
+      theme: "dark",
+      usageStatistics: false,
+      autofocus: false,
+      placeholder: "Escreva aqui… títulos (/heading), listas, checklists, quotes, tabelas, código…",
+      toolbarItems: [
+        ["heading", "bold", "italic", "strike"],
+        ["hr", "quote"],
+        ["ul", "ol", "task"],
+        ["indent", "outdent"],
+        ["table", "link", "image"],
+        ["code", "codeblock"],
+      ],
+      hooks: {
+        addImageBlobHook: async (blob, cb) => {
+          const url = URL.createObjectURL(blob);
+          cb(url, blob.name || "imagem");
+          return false;
         }
-        applyCoverImages();
+      }
     });
+    // Ctrl/Cmd+Enter => salvar
+    const onSaveShortcut = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        btnSalvarNota.click();
+      }
+    };
+    editor.getEditorElements().mdEditor?.addEventListener?.("keydown", onSaveShortcut, true);
+    editor.getEditorElements().wwEditor?.addEventListener?.("keydown", onSaveShortcut, true);
+    return editor;
+  }
+
+  function resizeEditor() {
+    if (!editor) return;
+    // calcula altura útil dentro do modal (header + footer)
+    const header = modalEl.querySelector(".modal-header")?.offsetHeight || 0;
+    const footer = modalEl.querySelector(".modal-footer")?.offsetHeight || 0;
+    const verticalPadding = 32; // respiro
+    const vh = window.innerHeight;
+    const h = Math.max(320, vh - header - footer - verticalPadding - 40); // 40 ~ margens internas
+    editor.setHeight(`${h}px`);
+  }
+
+  // ===== UI Helpers =====
+  function showEmpty(){ notesEmpty.classList.remove("d-none"); notesEditorWrap.classList.add("d-none"); }
+  function showEditor(){ notesEmpty.classList.add("d-none"); notesEditorWrap.classList.remove("d-none"); }
+
+  function renderTree() {
+    notesTree.innerHTML = "";
+    if (!state.folders.length) {
+      notesTree.innerHTML = `<div class="text-muted small px-2 pb-3">Sem pastas. Clique em <b>Nova pasta</b> ou crie uma nota.</div>`;
+      currentFolderId = null; currentNoteId = null;
+      showEmpty();
+      return;
+    }
+
+    state.folders.forEach(f => {
+      const isActive = f.id === currentFolderId;
+      const badge = f.visibility === "private" ? "🔒" : "👥";
+      const wrap = document.createElement("div");
+      wrap.className = "mb-2";
+      wrap.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between folder-item ${isActive ? 'active' : ''}"
+             data-folder-id="${f.id}"
+             style="padding:.45rem .5rem; border-radius:10px; cursor:pointer; background:${isActive ? 'rgba(255,255,255,.06)' : 'transparent'}">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-folder2"></i>
+            <strong class="folder-name">${f.name}</strong>
+            <span class="badge bg-secondary">${badge}</span>
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            <button class="btn btn-sm btn-ring" data-add-note-folder title="Nova nota nesta pasta"><i class="bi bi-file-earmark-plus"></i></button>
+            <button class="btn btn-sm btn-ring" data-rename-folder title="Renomear"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-danger btn-ring" data-delete-folder title="Apagar pasta"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+        <div class="mt-1 ps-4" data-notes-of="${f.id}">
+          ${f.notes.map(n => `
+            <div class="note-item ${n.id === currentNoteId ? 'active' : ''}"
+                 data-note-id="${n.id}"
+                 style="padding:.35rem .5rem; border-radius:8px; cursor:pointer; ${n.id === currentNoteId ? 'background:rgba(255,255,255,.04)' : ''}">
+              <i class="bi bi-file-earmark-text me-1"></i><span class="note-title">${n.title || "(sem título)"}</span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+      notesTree.appendChild(wrap);
+    });
+  }
+
+  function openNote(n) {
+    ensureEditor();
+    noteTitleInput.value = n.title || "";
+    editor.setMarkdown(n.content || "");
+    showEditor();
+    resizeEditor();
+  }
+
+  // ===== CRUD =====
+  function createFolder(name, visibility = "private") {
+    const f = { id: uid(), name: (name || "Nova pasta").trim() || "Nova pasta", visibility, notes: [] };
+    state.folders.push(f);
+    save(currentSessionId, state);
+    return f;
+  }
+  function ensureActiveFolder() {
+    if (!state.folders.length) {
+      const f = createFolder("Geral", folderVisibility.value || "private");
+      currentFolderId = f.id;
+    } else if (!currentFolderId) {
+      currentFolderId = state.folders[0].id;
+    }
+  }
+  function createNoteInFolder(fid) {
+    const f = byId(state.folders, fid);
+    if (!f) return null;
+    const note = { id: uid(), title: "Nova nota", content: "" };
+    f.notes.unshift(note);
+    save(currentSessionId, state);
+    return note;
+  }
+
+  // ===== Botões principais =====
+  btnNovaPasta.addEventListener("click", (e) => {
+    e.preventDefault();
+    const name = prompt("Nome da pasta:");
+    if (name === null) return;
+    const f = createFolder(name, folderVisibility.value || "private");
+    currentFolderId = f.id;
+    currentNoteId = null;
+    renderTree();
+    showEmpty();
+  });
+
+  // 🔧 Corrigido: “Nova nota” global sempre cria (mesmo sem pasta) e abre a nota
+  btnNovaNota.addEventListener("click", (e) => {
+    e.preventDefault();
+    ensureActiveFolder();
+    const note = createNoteInFolder(currentFolderId);
+    if (!note) return;
+    currentNoteId = note.id;
+    renderTree();
+    openNote(note);
+  });
+
+  btnSalvarNota.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!currentFolderId || !currentNoteId) return;
+    const f = byId(state.folders, currentFolderId);
+    const n = byId(f.notes, currentNoteId);
+    n.title   = (noteTitleInput.value || "").trim() || "(sem título)";
+    n.content = editor ? editor.getMarkdown() : "";
+    save(currentSessionId, state);
+    renderTree();
+  });
+
+  btnApagarNota.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!currentFolderId || !currentNoteId) return;
+    if (!confirm("Apagar esta nota?")) return;
+    const f = byId(state.folders, currentFolderId);
+    const idx = f.notes.findIndex(n => n.id === currentNoteId);
+    if (idx >= 0) f.notes.splice(idx, 1);
+    currentNoteId = null;
+    save(currentSessionId, state);
+    renderTree();
+    showEmpty();
+  });
+
+  folderVisibility.addEventListener("change", () => {
+    if (!currentFolderId) return;
+    const f = byId(state.folders, currentFolderId);
+    f.visibility = folderVisibility.value;
+    save(currentSessionId, state);
+    renderTree();
+  });
+
+  // ===== Delegação na árvore =====
+  notesTree.addEventListener("click", (e) => {
+    const addNoteBtn = e.target.closest("[data-add-note-folder]");
+    const renameBtn  = e.target.closest("[data-rename-folder]");
+    const deleteBtn  = e.target.closest("[data-delete-folder]");
+    const noteDiv    = e.target.closest("[data-note-id]");
+    const folderItem = e.target.closest("[data-folder-id]");
+
+    if (addNoteBtn) {
+      e.preventDefault();
+      const row = addNoteBtn.closest("[data-folder-id]");
+      const fid = row?.getAttribute("data-folder-id");
+      currentFolderId = fid;
+      const note = createNoteInFolder(fid);
+      currentNoteId = note.id;
+      renderTree();
+      openNote(note);
+      return;
+    }
+
+    if (renameBtn) {
+      e.preventDefault();
+      const row = renameBtn.closest("[data-folder-id]");
+      const fid = row?.getAttribute("data-folder-id");
+      const f = byId(state.folders, fid);
+      if (!f) return;
+      const novo = prompt("Novo nome da pasta:", f.name);
+      if (novo === null) return;
+      f.name = (novo || "").trim() || f.name;
+      save(currentSessionId, state);
+      renderTree();
+      return;
+    }
+
+    if (deleteBtn) {
+      e.preventDefault();
+      const row = deleteBtn.closest("[data-folder-id]");
+      const fid = row?.getAttribute("data-folder-id");
+      const idx = state.folders.findIndex(x => x.id === fid);
+      if (idx < 0) return;
+      if (!confirm("Apagar pasta e TODAS as notas dentro dela?")) return;
+      const wasCurrent = (fid === currentFolderId);
+      state.folders.splice(idx, 1);
+      if (wasCurrent) { currentFolderId = state.folders[0]?.id || null; currentNoteId = null; }
+      save(currentSessionId, state);
+      renderTree();
+      if (!currentFolderId) showEmpty();
+      return;
+    }
+
+    if (noteDiv) {
+      e.preventDefault();
+      const nid = noteDiv.getAttribute("data-note-id");
+      const parentFolder = noteDiv.closest("[data-notes-of]");
+      const fid = parentFolder?.getAttribute("data-notes-of");
+      if (fid && currentFolderId !== fid) currentFolderId = fid;
+      const f = byId(state.folders, currentFolderId);
+      const n = byId(f.notes, nid);
+      currentNoteId = nid;
+      openNote(n);
+      renderTree();
+      return;
+    }
+
+    if (folderItem) {
+      e.preventDefault();
+      const fid = folderItem.getAttribute("data-folder-id");
+      currentFolderId = fid;
+      currentNoteId = null;
+      const f = byId(state.folders, currentFolderId);
+      if (f) folderVisibility.value = f.visibility || "private";
+      renderTree();
+      showEmpty();
+      return;
+    }
+  });
+
+  // ===== Fullscreen do modal (Bootstrap) + resize do editor =====
+  btnFullscreen.addEventListener("click", () => {
+    modalDialog.classList.toggle("modal-fullscreen"); // classe nativa do BS5
+    // troca ícone
+    const i = btnFullscreen.querySelector("i");
+    if (modalDialog.classList.contains("modal-fullscreen")) {
+      i.classList.remove("bi-arrows-fullscreen");
+      i.classList.add("bi-fullscreen-exit");
+    } else {
+      i.classList.remove("bi-fullscreen-exit");
+      i.classList.add("bi-arrows-fullscreen");
+    }
+    setTimeout(resizeEditor, 10);
+  });
+
+  window.addEventListener("resize", () => { if (editor && modalEl.classList.contains("show")) resizeEditor(); });
+
+  // ===== Inicializa ao abrir o modal =====
+  modalEl.addEventListener("show.bs.modal", (ev) => {
+    const trigger = ev.relatedTarget || document.activeElement;
+    if (!trigger) return;
+
+    const sid = trigger.getAttribute("data-session-id");
+    const title = trigger.getAttribute("data-session-title") || "Notas";
+    if (!sid) return;
+
+    currentSessionId = sid;
+    notesModalTitle.textContent = `Notas — ${title}`;
+
+    state = load(currentSessionId);
+    currentFolderId = state.folders[0]?.id || null;
+    currentNoteId = null;
+
+    // (re)cria o editor “limpo” ao abrir
+    if (editor) { editor.destroy(); editor = null; }
+    ensureEditor();
+
+    if (currentFolderId) {
+      const f = byId(state.folders, currentFolderId);
+      folderVisibility.value = f.visibility || "private";
+    }
+
+    renderTree();
+    if (!currentFolderId) showEmpty();
+
+    // primeiro resize após abrir
+    setTimeout(resizeEditor, 10);
+  });
+})();
 </script>

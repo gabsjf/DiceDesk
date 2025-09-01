@@ -67,13 +67,18 @@ export function detalhes(req, res) {
   const campanha = CampanhaModel.obterPorId(req.params.id);
   if (!campanha) return res.status(404).send("Campanha não encontrada");
 
+  const sessoes = SessaoModel.listarPorCampanha(campanha.id);
+  const campanhaView = { ...campanha, sessoes };
+
   res.render("campanhas/detalhes", {
     title: "Detalhes da Campanha",
     active: "campanhas",
-    campanha
+    campanha: campanhaView,
+    sessoes,
+    errors: {},
+    csrfToken: req.csrfToken()  // <— explícito
   });
 }
-
 
 
 /* ===========================

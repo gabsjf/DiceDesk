@@ -1,49 +1,47 @@
 // src/controllers/sessao.controller.js
 import { CampanhaModel } from "../models/campanha.model.js";
 import { SessaoModel } from "../models/sessao.model.js";
-import { body, validationResult } from "express-validator";
 
-export function listarPorCampanha(req, res) {
-  // usado indiretamente na view de detalhes; normalmente renderizamos por campanha
-  const { id } = req.params;
+/**
+ * POST /campanhas/:id/sessoes
+ * Cria sessão (nome + imagem opcional). Usa multer na rota.
+ * Rota (ordem é importante): upload.single("imagem") -> csrfProtection -> criarSessaoPost
+ */
+export async function criarSessaoPost(req, res) {
+  const { id } = req.params; // campanhaId
   const campanha = CampanhaModel.obterPorId(id);
   if (!campanha) return res.status(404).send("Campanha não encontrada");
 
-  const sessoes = SessaoModel.listarPorCampanha(id);
-  res.render("campanhas/detalhes", {
-    title: campanha.nome,
-    active: "campanhas",
-    campanha,
-    sessoes,
-    errors: {}
-  });
+  // Em multipart, o multer popula req.body + req.file
+  const titulo = (req.body?.nome || "").trim();
+  const file = req.file;
+  const capaUrl = file ? `/uploads/${file.filename}` : "";
+
+  if (!titulo) {
+    const sessoes = SessaoModel.listarPorCampanha(id);
+    return res.status(400).render("campanhas/detalhes", {
+      title: campanha.nome,
+      active: "campanhas",
+      campanha: { ...campanha, sessoes },
+      sessoes,
+      errors: { nome: { msg: "Informe um nome para a sessão." } },
+      csrfToken: req.csrfToken() // renovar token na re-renderização
+    });
+  }
+
+  SessaoModel.criar({ campanhaId: id, titulo, capaUrl });
+  req.session.flash = { success: "Sessão criada." };
+  return res.redirect(`/campanhas/${id}`);
 }
 
-export const criarSessaoPost = [
-  body("titulo").trim().notEmpty().withMessage("Informe um título para a sessão."),
-  (req, res) => {
-    const { id } = req.params;           // campanhaId
-    const errors = validationResult(req);
-    const campanha = CampanhaModel.obterPorId(id);
-    if (!campanha) return res.status(404).send("Campanha não encontrada");
-
-    if (!errors.isEmpty()) {
-      const sessoes = SessaoModel.listarPorCampanha(id);
-      return res.status(400).render("campanhas/detalhes", {
-        title: campanha.nome,
-        active: "campanhas",
-        campanha,
-        sessoes,
-        errors: errors.mapped()
-      });
-    }
-
-    const titulo = req.body.titulo;
-    const file = req.file; // via multer
-    const capaUrl = file ? `/uploads/${file.filename}` : "";
-
-    SessaoModel.criar({ campanhaId: id, titulo, capaUrl });
-    req.session.flash = { success: "Sessão criada." };
-    res.redirect(`/campanhas/${id}`);
-  }
-];
+/**
+ * POST /campanhas/:id/sessoes/:sid/apagar
+ * Remove sessão e volta para a campanha.
+ * Rota: router.post("/:id/sessoes/:sid/apagar", csrfProtection, apagarSessaoPost);
+ */
+export function apagarSessaoPost(req, res) {
+  const { id, sid } = req.params; // id = campanhaId, sid = sessaoId
+  const ok = SessaoModel.remover(sid);
+  if (ok) req.session.flash = { success: "Sessão apagada." };
+  return res.redirect(`/campanhas/${id}`);
+}
