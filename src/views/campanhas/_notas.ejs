@@ -1,0 +1,428 @@
+<div class="modal fade" id="modal-notas" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content arc-card">
+
+      <div class="modal-header" style="background:var(--surface-2); border-bottom:1px solid rgba(255,255,255,.08);">
+        <h5 class="modal-title d-flex align-items-center gap-2">
+          <i class="bi bi-journal-text"></i><span id="notesModalTitle">Notas</span>
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+          <button id="btnToggleSidebar" type="button" class="btn btn-ring btn-sm" title="Recolher/expandir pastas">
+            <i class="bi bi-layout-sidebar-inset"></i>
+          </button>
+          <button id="btnToggleFullscreen" type="button" class="btn btn-ring btn-sm" title="Tela cheia">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-0" style="background:var(--surface);">
+        <div class="row g-0">
+          <div id="notesSidebarCol" class="col-12 col-md-4 border-end" style="border-color: rgba(255,255,255,.08) !important;">
+            <div class="p-3 d-flex justify-content-between align-items-center">
+              <strong>Pastas</strong>
+              <button class="btn btn-primary btn-sm" id="btnNovaPasta">
+                <i class="bi bi-folder-plus me-1"></i> Nova pasta
+              </button>
+            </div>
+            <div id="notesTree" class="px-2 pb-3" style="max-height:60vh; overflow:auto;"></div>
+          </div>
+
+          <div id="notesEditorCol" class="col-12 col-md-8">
+            <div class="p-3">
+              <div id="notesEmpty" class="empty">
+                <i class="bi bi-file-earmark-text fs-1 d-block mb-2"></i>
+                <p class="mb-2">Selecione uma nota para começar a editar</p>
+                <button class="btn btn-primary" id="btnNovaNota">
+                  <i class="bi bi-plus-lg me-1"></i> Nova nota
+                </button>
+              </div>
+
+              <div id="notesEditor" class="d-none">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <input id="noteTitle" class="form-control form-control-lg me-2" placeholder="Título da nota">
+                  <button id="btnSalvarNota" class="btn btn-primary">
+                    <i class="bi bi-check2 me-1"></i> Salvar
+                  </button>
+                </div>
+
+                <div id="noteEditorMount" class="tui-editor-wrapper"></div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <div class="form-text text-muted">
+                    Dica: use <kbd>/</kbd> para explorar a toolbar; <kbd>Ctrl/Cmd</kbd>+<kbd>Enter</kbd> salva.
+                  </div>
+                  <button id="btnApagarNota" class="btn btn-danger btn-sm">
+                    <i class="bi bi-trash me-1"></i> Apagar nota
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="background:var(--surface); border-top:1px solid rgba(255,255,255,.08);">
+        <div class="d-flex align-items-center gap-3 me-auto">
+          <span class="small text-muted">Visibilidade da pasta:</span>
+          <div class="vis-toggle d-inline-flex align-items-center gap-2">
+            <i class="bi bi-people-fill text-muted small"></i>
+            <input type="checkbox" id="folderVisibility" class="vis-switch" />
+            <i class="bi bi-lock-fill text-muted small"></i>
+          </div>
+        </div>
+        <button class="btn btn-ring" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+<script>
+(() => {
+  // O seu script de anotações aqui
+  const key  = (sid) => `dd:notes:${sid}`;
+  const load = (sid) => { try { return JSON.parse(localStorage.getItem(key(sid)) || '{"folders":[]}'); } catch { return { folders: [] }; } };
+  const save = (sid, data) => localStorage.setItem(key(sid), JSON.stringify(data));
+  let currentSessionId = null;
+  let state = null;
+  let currentFolderId = null;
+  let currentNoteId = null;
+  let renameFolderId = null;
+  let confirmDeleteFolderId = null;
+  let noteDeleteConfirm = false;
+
+  const modalEl = document.getElementById("modal-notas");
+  const modalDialog = modalEl.querySelector(".modal-dialog");
+  const modalContent = modalEl.querySelector(".modal-content");
+  const btnSidebar = document.getElementById("btnToggleSidebar");
+  const btnFullscreen = document.getElementById("btnToggleFullscreen");
+  const notesModalTitle = document.getElementById("notesModalTitle");
+  const notesTree = document.getElementById("notesTree");
+  const notesEmpty = document.getElementById("notesEmpty");
+  const notesEditorWrap = document.getElementById("notesEditor");
+  const btnNovaPasta = document.getElementById("btnNovaPasta");
+  const btnNovaNota = document.getElementById("btnNovaNota");
+  const btnSalvarNota = document.getElementById("btnSalvarNota");
+  const btnApagarNota = document.getElementById("btnApagarNota");
+  const folderVisibility = document.getElementById("folderVisibility");
+  const noteTitleInput = document.getElementById("noteTitle");
+  const editorMount = document.getElementById("noteEditorMount");
+
+  const getVisibility = () => (folderVisibility.checked ? "private" : "players");
+  const setVisibility = (v) => { folderVisibility.checked = (v !== "players"); };
+
+  const uiKeySidebar = "dd:notes:ui:sidebarCollapsed";
+  function setSidebarCollapsed(collapsed) {
+    modalContent.classList.toggle("sidebar-hidden", collapsed);
+    localStorage.setItem(uiKeySidebar, JSON.stringify(!!collapsed));
+    const i = btnSidebar.querySelector("i");
+    if (collapsed) {
+      i.classList.remove("bi-layout-sidebar-inset");
+      i.classList.add("bi-layout-sidebar");
+      btnSidebar.setAttribute("aria-pressed", "true");
+    } else {
+      i.classList.remove("bi-layout-sidebar");
+      i.classList.add("bi-layout-sidebar-inset");
+      btnSidebar.setAttribute("aria-pressed", "false");
+    }
+    setTimeout(resizeEditor, 10);
+  }
+
+  let editor = null;
+  function ensureEditor() {
+    if (editor) return editor;
+    editor = new toastui.Editor({
+      el: editorMount,
+      height: "60vh",
+      initialEditType: "wysiwyg",
+      previewStyle: "vertical",
+      theme: "dark",
+      usageStatistics: false,
+      autofocus: false,
+      placeholder: "Escreva aqui… títulos (/heading), listas, checklists, quotes, tabelas, código…",
+      toolbarItems: [
+        ["heading", "bold", "italic", "strike"],
+        ["hr", "quote"],
+        ["ul", "ol", "task"],
+        ["indent", "outdent"],
+        ["table", "link", "image"],
+        ["code", "codeblock"],
+      ],
+      hooks: {
+        addImageBlobHook: async (blob, cb) => {
+          const url = URL.createObjectURL(blob); cb(url, blob.name || "imagem"); return false;
+        }
+      }
+    });
+    const onSaveShortcut = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); btnSalvarNota.click(); }
+    };
+    editor.getEditorElements().mdEditor?.addEventListener?.("keydown", onSaveShortcut, true);
+    editor.getEditorElements().wwEditor?.addEventListener?.("keydown", onSaveShortcut, true);
+    return editor;
+  }
+
+  function resizeEditor() {
+    if (!editor) return;
+    const header = modalEl.querySelector(".modal-header")?.offsetHeight || 0;
+    const footer = modalEl.querySelector(".modal-footer")?.offsetHeight || 0;
+    const vh = window.innerHeight;
+    const h = Math.max(320, vh - header - footer - 72);
+    editor.setHeight(`${h}px`);
+  }
+
+  function showEmpty(){ notesEmpty.classList.remove("d-none"); notesEditorWrap.classList.add("d-none"); }
+  function showEditor(){ notesEmpty.classList.add("d-none"); notesEditorWrap.classList.remove("d-none"); }
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const byId = (arr, id) => arr.find(x => x.id === id);
+  const escapeHtml = (s) => (s || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function createFolder(name, visibility = "private") {
+    const f = { id: uid(), name: (name || "Nova pasta").trim() || "Nova pasta", visibility, notes: [] };
+    state.folders.push(f); save(currentSessionId, state); return f;
+  }
+  function ensureActiveFolder() {
+    if (!state.folders.length) {
+      const f = createFolder("Geral", getVisibility()); currentFolderId = f.id;
+    } else if (!currentFolderId) {
+      currentFolderId = state.folders[0].id;
+    }
+  }
+  function createNoteInFolder(fid) {
+    const f = byId(state.folders, fid); if (!f) return null;
+    const note = { id: uid(), title: "Nova nota", content: "" };
+    f.notes.unshift(note); save(currentSessionId, state); return note;
+  }
+  function renderTree() {
+    notesTree.innerHTML = "";
+    if (!state.folders.length) {
+      notesTree.innerHTML = `<div class="text-muted small px-2 pb-3">Sem pastas. Clique em <b>Nova pasta</b> ou crie uma nota.</div>`;
+      currentFolderId = null; currentNoteId = null; showEmpty(); return;
+    }
+
+    state.folders.forEach(f => {
+      const isActive = f.id === currentFolderId;
+      const isRenaming = f.id === renameFolderId;
+      const isConfirmDel = f.id === confirmDeleteFolderId;
+      const badge = f.visibility === "private" ? "🔒" : "👥";
+      const wrap = document.createElement("div");
+      wrap.className = "mb-2";
+      wrap.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between folder-item ${isActive ? 'active' : ''}"
+             data-folder-id="${f.id}"
+             style="padding:.45rem .5rem; border-radius:10px; cursor:pointer; background:${isActive ? 'rgba(255,255,255,.06)' : 'transparent'}">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-folder2"></i>
+            ${isRenaming ? `<input data-folder-name-input class="form-control form-control-sm" value="${escapeHtml(f.name)}" style="max-width:70%;"></input>` : `<strong class="folder-name">${escapeHtml(f.name)}</strong>`}
+            <span class="badge bg-secondary">${badge}</span>
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            ${isRenaming ? `
+              <button class="btn btn-sm btn-primary" data-save-rename-folder title="Salvar"><i class="bi bi-check2"></i></button>
+              <button class="btn btn-sm btn-ring" data-cancel-rename-folder title="Cancelar"><i class="bi bi-x-lg"></i></button>
+            ` : isConfirmDel ? `
+              <button class="btn btn-sm btn-danger" data-confirm-delete-folder title="Confirmar"><i class="bi bi-check2"></i></button>
+              <button class="btn btn-sm btn-ring" data-cancel-delete-folder title="Cancelar"><i class="bi bi-x-lg"></i></button>
+            ` : `
+              <button class="btn btn-sm btn-ring" data-add-note-folder title="Nova nota nesta pasta"><i class="bi bi-file-earmark-plus"></i></button>
+              <button class="btn btn-sm btn-ring" data-start-rename-folder title="Renomear"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-danger" data-delete-folder title="Apagar pasta"><i class="bi bi-trash"></i></button>
+            `}
+          </div>
+        </div>
+        <div class="mt-1 ps-4" data-notes-of="${f.id}">
+          ${f.notes.map(n => `
+            <div class="note-item ${n.id === currentNoteId ? 'active' : ''}"
+                 data-note-id="${n.id}"
+                 style="padding:.35rem .5rem; border-radius:8px; cursor:pointer; ${n.id === currentNoteId ? 'background:rgba(255,255,255,.04)' : ''}">
+              <i class="bi bi-file-earmark-text me-1"></i><span class="note-title">${escapeHtml(n.title || "(sem título)")}</span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+      notesTree.appendChild(wrap);
+    });
+
+    if (renameFolderId) {
+      const input = notesTree.querySelector(`[data-folder-id="${renameFolderId}"] [data-folder-name-input]`);
+      if (input) { input.focus(); input.select(); }
+    }
+  }
+
+  function openNote(n) {
+    ensureEditor();
+    noteTitleInput.value = n.title || "";
+    editor.setMarkdown(n.content || "");
+    showEditor(); resizeEditor();
+  }
+
+  btnNovaPasta.addEventListener("click", (e) => {
+    e.preventDefault();
+    const f = createFolder("Nova pasta", getVisibility());
+    currentFolderId = f.id; currentNoteId = null;
+    renameFolderId = f.id; confirmDeleteFolderId = null;
+    renderTree(); showEmpty();
+  });
+  btnNovaNota.addEventListener("click", (e) => {
+    e.preventDefault();
+    ensureActiveFolder();
+    const note = createNoteInFolder(currentFolderId); if (!note) return;
+    currentNoteId = note.id; renderTree(); openNote(note);
+  });
+  btnSalvarNota.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!currentFolderId || !currentNoteId) return;
+    const f = byId(state.folders, currentFolderId);
+    const n = byId(f.notes, currentNoteId);
+    n.title = (noteTitleInput.value || "").trim() || "(sem título)";
+    n.content = editor ? editor.getMarkdown() : "";
+    save(currentSessionId, state); renderTree();
+  });
+  btnApagarNota.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!currentFolderId || !currentNoteId) return;
+    if (!noteDeleteConfirm) {
+      noteDeleteConfirm = true;
+      btnApagarNota.classList.remove("btn-danger"); btnApagarNota.classList.add("btn-warning");
+      btnApagarNota.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Confirmar';
+      setTimeout(() => {
+        if (!noteDeleteConfirm) return;
+        noteDeleteConfirm = false;
+        btnApagarNota.classList.remove("btn-warning"); btnApagarNota.classList.add("btn-danger");
+        btnApagarNota.innerHTML = '<i class="bi bi-trash me-1"></i> Apagar nota';
+      }, 3000);
+      return;
+    }
+    const f = byId(state.folders, currentFolderId);
+    const idx = f.notes.findIndex(n => n.id === currentNoteId);
+    if (idx >= 0) f.notes.splice(idx, 1);
+    currentNoteId = null; noteDeleteConfirm = false;
+    btnApagarNota.classList.remove("btn-warning"); btnApagarNota.classList.add("btn-danger");
+    btnApagarNota.innerHTML = '<i class="bi bi-trash me-1"></i> Apagar nota';
+    save(currentSessionId, state); renderTree(); showEmpty();
+  });
+  folderVisibility.addEventListener("change", () => {
+    if (!currentFolderId) return;
+    const f = byId(state.folders, currentFolderId);
+    f.visibility = getVisibility();
+    save(currentSessionId, state);
+    renderTree();
+  });
+  notesTree.addEventListener("click", (e) => {
+    const folderItem = e.target.closest("[data-folder-id]");
+    const fid = folderItem?.getAttribute("data-folder-id");
+    if (e.target.closest("[data-add-note-folder]")) {
+      e.preventDefault();
+      currentFolderId = fid; const note = createNoteInFolder(fid);
+      currentNoteId = note.id; renderTree(); openNote(note); return;
+    }
+    if (e.target.closest("[data-start-rename-folder]")) {
+      e.preventDefault(); renameFolderId = fid; confirmDeleteFolderId = null; renderTree(); return;
+    }
+    if (e.target.closest("[data-save-rename-folder]")) {
+      e.preventDefault();
+      const input = folderItem.querySelector("[data-folder-name-input]");
+      const val = (input?.value || "").trim() || "Nova pasta";
+      const f = byId(state.folders, fid); f.name = val;
+      renameFolderId = null; save(currentSessionId, state); renderTree(); return;
+    }
+    if (e.target.closest("[data-cancel-rename-folder]")) {
+      e.preventDefault(); renameFolderId = null; renderTree(); return;
+    }
+    if (e.target.closest("[data-delete-folder]")) {
+      e.preventDefault(); confirmDeleteFolderId = fid; renameFolderId = null; renderTree(); return;
+    }
+    if (e.target.closest("[data-confirm-delete-folder]")) {
+      e.preventDefault();
+      const idx = state.folders.findIndex(x => x.id === fid);
+      if (idx >= 0) state.folders.splice(idx, 1);
+      if (currentFolderId === fid) { currentFolderId = state.folders[0]?.id || null; currentNoteId = null; }
+      confirmDeleteFolderId = null; save(currentSessionId, state); renderTree(); if (!currentFolderId) showEmpty(); return;
+    }
+    if (e.target.closest("[data-cancel-delete-folder]")) {
+      e.preventDefault(); confirmDeleteFolderId = null; renderTree(); return;
+    }
+    if (folderItem && !e.target.closest("[data-notes-of]")) {
+      e.preventDefault();
+      currentFolderId = fid; currentNoteId = null;
+      const f = byId(state.folders, currentFolderId);
+      if (f) setVisibility(f.visibility || "private");
+      renderTree(); showEmpty(); return;
+    }
+    const noteDiv = e.target.closest("[data-note-id]");
+    if (noteDiv) {
+      e.preventDefault();
+      const nid = noteDiv.getAttribute("data-note-id");
+      const parentFolder = noteDiv.closest("[data-notes-of]");
+      const pfid = parentFolder?.getAttribute("data-notes-of");
+      if (pfid && currentFolderId !== pfid) currentFolderId = pfid;
+      const f = byId(state.folders, currentFolderId);
+      const n = byId(f.notes, nid);
+      currentNoteId = nid; openNote(n); renderTree(); return;
+    }
+  });
+  notesTree.addEventListener("keydown", (e) => {
+    const input = e.target.closest("[data-folder-name-input]");
+    if (!input) return;
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    else if (e.key === "Escape") { e.preventDefault(); renameFolderId = null; renderTree(); }
+  });
+  notesTree.addEventListener("blur", (e) => {
+    const input = e.target.closest("[data-folder-name-input]"); if (!input) return;
+    const row = input.closest("[data-folder-id]"); const fid = row?.getAttribute("data-folder-id");
+    const f = byId(state.folders, fid); if (!f) return;
+    const val = (input.value || "").trim(); if (val) { f.name = val; save(currentSessionId, state); }
+    renameFolderId = null; renderTree();
+  }, true);
+  btnFullscreen?.addEventListener("click", () => {
+    modalDialog.classList.toggle("modal-fullscreen");
+    const i = btnFullscreen.querySelector("i");
+    if (modalDialog.classList.contains("modal-fullscreen")) { i.classList.replace("bi-arrows-fullscreen", "bi-fullscreen-exit"); }
+    else { i.classList.replace("bi-fullscreen-exit", "bi-arrows-fullscreen"); }
+    setTimeout(resizeEditor, 10);
+  });
+  btnSidebar?.addEventListener("click", () => {
+    const collapsed = modalContent.classList.contains("sidebar-hidden");
+    setSidebarCollapsed(!collapsed);
+  });
+  window.addEventListener("resize", () => { if (editor && modalEl.classList.contains("show")) resizeEditor(); });
+  modalEl.addEventListener("show.bs.modal", (ev) => {
+    const trigger = ev.relatedTarget || document.activeElement; if (!trigger) return;
+    const sid = trigger.getAttribute("data-session-id") || "<%= campanha.id %>"; // Pega o ID da sessão ou da campanha
+    const title = trigger.getAttribute("data-session-title") || "Notas"; if (!sid) return;
+    currentSessionId = sid; notesModalTitle.textContent = `Notas — ${title}`;
+    state = load(currentSessionId);
+    currentFolderId = state.folders[0]?.id || null; currentNoteId = null;
+    renameFolderId = null; confirmDeleteFolderId = null; noteDeleteConfirm = false;
+    if (editor) { editor.destroy(); editor = null; }
+    ensureEditor();
+    if (currentFolderId) {
+      const f = byId(state.folders, currentFolderId);
+      setVisibility(f.visibility || "private");
+    }
+    renderTree(); if (!currentFolderId) showEmpty();
+    const savedCollapsed = JSON.parse(localStorage.getItem(uiKeySidebar) || "false");
+    setSidebarCollapsed(!!savedCollapsed);
+    setTimeout(resizeEditor, 10);
+  });
+  document.addEventListener("DOMContentLoaded", () => {
+    if (location.hash === "#open-notes") {
+      const el = document.getElementById("modal-notas");
+      if (el) {
+        // Obtenha os dados da campanha para passar ao modal
+        const sessionId = "<%= campanha.id %>"; // ou `sessao.id` se estiver na página da sessão
+        const sessionTitle = "<%= campanha.nome %>"; // ou `sessao.titulo`
+        
+        // Simular o trigger do botão
+        const trigger = document.createElement('div');
+        trigger.setAttribute('data-session-id', sessionId);
+        trigger.setAttribute('data-session-title', sessionTitle);
+
+        new bootstrap.Modal(el).show(trigger);
+      }
+    }
+  });
+})();
+</script>

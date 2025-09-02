@@ -1,71 +1,71 @@
 // src/models/campanha.model.js
-import { v4 as uuid } from "uuid";
-
-// Armazenamento em memória (mock)
-const _campanhas = [
+// Banco em memória único do processo:
+const _db = [
   {
     id: "1",
     nome: "A Crônica do Reino Perdido",
     sistema: "Dungeons & Dragons 5e",
     descricao: "Uma aventura épica em um reino mágico.",
-    capaUrl: "",
-    createdAt: new Date("2025-01-10"),
-    updatedAt: new Date("2025-01-10")
+    capaUrl: null,
+    sessoes: []
   },
   {
     id: "2",
     nome: "A Ascensão de Cthulhu",
     sistema: "Chamado de Cthulhu",
     descricao: "Uma investigação sombria sobre cultos e horrores.",
-    capaUrl: "",
-    createdAt: new Date("2025-02-15"),
-    updatedAt: new Date("2025-02-15")
+    capaUrl: null,
+    sessoes: []
   }
 ];
 
+// Helpers de id
+function toIdLike(v) { return String(v); }
+function nextId() { return String(_db.length ? Math.max(..._db.map(c => Number(c.id)||0)) + 1 : 1); }
+
 export const CampanhaModel = {
-  listar() {
-    // retorna cópia para evitar mutação externa
-    return _campanhas.slice();
+  // Lista tudo (referência viva — cuidado pra não substituir o array, só mutar itens)
+  findAll() {
+    return _db;
+  },
+  listar()  { return _db; },
+
+  // Busca por id (compara como string)
+  findById(id) {
+    const key = toIdLike(id);
+    return _db.find(c => toIdLike(c.id) === key) || null;
   },
 
-  obterPorId(id) {
-    return _campanhas.find(c => c.id === id) || null;
-  },
-
-  criar({ nome, sistema, descricao, capaUrl }) {
-    const now = new Date();
-    const nova = {
-      id: uuid(),
-      nome,
-      sistema,
-      descricao: descricao || "",
-      capaUrl: capaUrl || "",
-      createdAt: now,
-      updatedAt: now
+  // Cria campanha
+  create(data) {
+    const id = data?.id ? toIdLike(data.id) : nextId();
+    const campanha = {
+      id,
+      nome: data?.nome || "Nova campanha",
+      sistema: data?.sistema || "",
+      descricao: data?.descricao || "",
+      capaUrl: data?.capaUrl || null,
+      sessoes: Array.isArray(data?.sessoes) ? data.sessoes : []
     };
-    // mais recente primeiro
-    _campanhas.unshift(nova);
-    return nova;
+    _db.push(campanha);
+    return campanha;
   },
 
-  atualizar(id, { nome, sistema, descricao, capaUrl }) {
-    const c = _campanhas.find(x => x.id === id);
-    if (!c) return null;
-    c.nome = nome;
-    c.sistema = sistema;
-    c.descricao = descricao || "";
-    if (typeof capaUrl !== "undefined") c.capaUrl = capaUrl || "";
-    c.updatedAt = new Date();
-    return c;
+  // Atualiza (merge superficial)
+  update(id, patch) {
+    const key = toIdLike(id);
+    const idx = _db.findIndex(c => toIdLike(c.id) === key);
+    if (idx < 0) return null;
+    _db[idx] = { ..._db[idx], ...patch };
+    return _db[idx];
   },
 
-  remover(id) {
-    const i = _campanhas.findIndex(x => x.id === id);
-    if (i >= 0) {
-      _campanhas.splice(i, 1);
-      return true;
-    }
-    return false;
+  // Remove
+  remove(id) {
+    const key = toIdLike(id);
+    const idx = _db.findIndex(c => toIdLike(c.id) === key);
+    if (idx < 0) return false;
+    _db.splice(idx, 1);
+    return true;
   }
 };

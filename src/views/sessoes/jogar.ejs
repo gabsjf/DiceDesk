@@ -1,0 +1,290 @@
+<% layout("_layout") %>
+<link rel="stylesheet" href="/css/jogar.css?v=4">
+
+<div class="jogar-container">
+  <!-- Sidebar -->
+  <aside class="jogar-sidebar">
+    <h6>Ferramentas</h6>
+
+    <div class="tool-group">
+      <button class="tool" data-bs-toggle="modal" data-bs-target="#modal-personagem">
+        <i class="bi bi-person-plus"></i> Adicionar personagem
+      </button>
+
+      <button class="tool" id="btnStartCombat">
+        <i class="bi bi-lightning-charge"></i> Iniciar combate
+      </button>
+
+      <button class="tool" id="btnOpenIni" data-bs-toggle="modal" data-bs-target="#modal-combate">
+        <i class="bi bi-swords"></i> Iniciativa
+      </button>
+
+      <!-- Abre o MESMO modal de notas, sem sair desta página -->
+      <button
+        class="tool"
+        id="btnOpenNotes"
+        data-bs-toggle="modal"
+        data-bs-target="#modal-notas"
+        data-session-id="<%= campanhaId %>"
+        data-session-title="<%= (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' %>">
+        <i class="bi bi-journal-text"></i> Anotações
+      </button>
+    </div>
+
+    <div class="sidebar-spacer"></div>
+
+    <form action="/campanhas/<%= campanhaId %>" method="get">
+      <button type="submit" class="btn-finish-session">
+        <i class="bi bi-x-lg me-2"></i> Finalizar sessão
+      </button>
+    </form>
+  </aside>
+
+  <!-- Main -->
+  <main class="jogar-main">
+    <div class="jogar-header">
+      <h2><i class="bi bi-controller me-2"></i><%= (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' %></h2>
+      <span class="sub">
+        <% if (sessao && sessao.createdAt) { %>
+          Criada em <%= new Date(sessao.createdAt).toLocaleDateString() %>
+        <% } %>
+      </span>
+    </div>
+
+    <!-- Grid de personagens -->
+    <div class="party-grid" id="partyGrid"></div>
+  </main>
+</div>
+
+<!-- Modal: personagem -->
+<div class="modal fade" id="modal-personagem" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content arc-card" id="formPersonagem">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title">Personagem</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="personagem-id">
+        <div class="mb-3">
+          <label class="form-label">Nome</label>
+          <input type="text" class="form-control" id="personagem-nome" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" id="personagem-tipo">
+            <option value="pc">Player (PC)</option>
+            <option value="npc">NPC</option>
+          </select>
+        </div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label">Nível (opcional)</label>
+            <input type="number" min="1" class="form-control" id="personagem-nivel" placeholder="ex.: 3">
+          </div>
+          <div class="col-6">
+            <label class="form-label">HP % (opcional)</label>
+            <input type="number" min="0" max="100" class="form-control" id="personagem-hp" placeholder="0–100">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-top-0">
+        <button class="btn btn-ring" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: dados -->
+<div class="modal fade" id="modal-dados" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content arc-card">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title">Rolar dados</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div class="mb-3">
+          <select class="form-select" id="dice-type">
+            <option value="20">d20</option>
+            <option value="12">d12</option>
+            <option value="10">d10</option>
+            <option value="8">d8</option>
+            <option value="6">d6</option>
+            <option value="4">d4</option>
+          </select>
+        </div>
+        <button class="btn btn-dice" id="rollDiceBtn">Rolar</button>
+        <div class="dice-result mt-3" id="diceResult"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: combate -->
+<div class="modal fade" id="modal-combate" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content arc-card">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title">Ordem de iniciativa</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group ini-list" id="iniList"></ul>
+      </div>
+      <div class="modal-footer border-top-0">
+        <button class="btn btn-ring" id="prevTurn">◀ Anterior</button>
+        <button class="btn btn-primary" id="nextTurn">Próximo ▶</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========= “campanha” fake para o partial funcionar aqui também ========= -->
+<% const campanha = { id: campanhaId, nome: (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' }; %>
+
+<!-- ========== PARTIAL DE NOTAS (mesmo arquivo) ========== -->
+<%- include('../partials/_notas') %>
+
+<script>
+(function () {
+  var sessaoId   = "<%= sessao && sessao.id ? sessao.id : '' %>";
+  var campanhaId = "<%= campanhaId ? campanhaId : '' %>";
+  var storageKey = "party:" + sessaoId;
+
+  var partyGrid      = document.getElementById("partyGrid");
+  var formPersonagem = document.getElementById("formPersonagem");
+  var diceBtn        = document.getElementById("rollDiceBtn");
+  var diceResult     = document.getElementById("diceResult");
+  var iniList        = document.getElementById("iniList");
+
+  var btnStartCombat = document.getElementById("btnStartCombat");
+  var btnOpenIni     = document.getElementById("btnOpenIni");
+
+  var party   = [];
+  var iniIdx  = 0;
+
+  try { party = JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch (e) { party = []; }
+
+  function renderParty() {
+    partyGrid.innerHTML = "";
+    if (!party.length) {
+      partyGrid.innerHTML =
+        '<div class="empty-state" style="grid-column:1/-1;"><i class="bi bi-people fs-1 d-block mb-2"></i>Nenhum personagem na sessão.</div>';
+      return;
+    }
+    party.forEach(function (p) {
+      var card = document.createElement("div");
+      card.className = "party-card";
+      var hpPct = (typeof p.hp === "number" && p.hp >= 0 && p.hp <= 100) ? p.hp : null;
+      var nivelHtml = p.nivel ? ('<span class="chip">Nvl ' + p.nivel + '</span>') : '';
+      card.innerHTML =
+        '<div class="party-avatar">' + (p.name && p.name[0] ? p.name[0].toUpperCase() : "?") + '</div>' +
+        '<h5>' + (p.name || "Sem nome") + '</h5>' +
+        '<div class="chips">' +
+          '<span class="chip ' + (p.isPc ? 'pc' : 'npc') + '">' + (p.isPc ? 'PC' : 'NPC') + '</span>' +
+          nivelHtml +
+        '</div>' +
+        (hpPct !== null ? ('<div class="statusbar" style="--hp:' + hpPct + '%;"><span></span></div>') : '');
+      partyGrid.appendChild(card);
+    });
+  }
+
+  if (formPersonagem) {
+    formPersonagem.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var idEl    = document.getElementById("personagem-id");
+      var nome    = (document.getElementById("personagem-nome").value || "").trim();
+      var tipo    = document.getElementById("personagem-tipo").value;
+      var nivelV  = document.getElementById("personagem-nivel").value;
+      var hpV     = document.getElementById("personagem-hp").value;
+
+      var nivel   = nivelV === "" ? null : parseInt(nivelV, 10);
+      var hp      = hpV === "" ? null : Math.max(0, Math.min(100, parseInt(hpV, 10)));
+      if (!nome) return;
+
+      var editingId = idEl.value ? Number(idEl.value) : null;
+      if (editingId) {
+        party = party.map(function (p) {
+          if (p.id === editingId) {
+            return { id: p.id, name: nome, isPc: (tipo === "pc"), nivel: (nivel ?? null), hp: (hp ?? null), ini: p.ini || 0 };
+          }
+          return p;
+        });
+      } else {
+        party.push({ id: Date.now(), name: nome, isPc: (tipo === "pc"), nivel: (nivel ?? null), hp: (hp ?? null), ini: 0 });
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify(party));
+      renderParty();
+      var m = bootstrap.Modal.getInstance(document.getElementById("modal-personagem"));
+      if (m) m.hide();
+      formPersonagem.reset();
+      idEl.value = "";
+    });
+  }
+
+  if (diceBtn) {
+    diceBtn.addEventListener("click", function () {
+      var faces = parseInt(document.getElementById("dice-type").value, 10);
+      var result = Math.floor(Math.random() * faces) + 1;
+      diceResult.textContent = "🎲 " + result;
+    });
+  }
+
+  function rollInitiative() {
+    party = party.map(function (p) {
+      return Object.assign({}, p, { ini: Math.floor(Math.random() * 20) + 1 + (p.isPc ? 2 : 0) });
+    });
+    party.sort(function (a, b) { return (b.ini || 0) - (a.ini || 0); });
+    localStorage.setItem(storageKey, JSON.stringify(party));
+  }
+  function renderIni() {
+    iniList.innerHTML = "";
+    party.forEach(function (p) {
+      var li = document.createElement("li");
+      li.className = "list-group-item d-flex justify-content-between align-items-center";
+      li.innerHTML =
+        '<span>' + p.name + ' ' +
+          (p.isPc ? '<span class="badge bg-success ms-2">PC</span>' : '<span class="badge bg-secondary ms-2">NPC</span>') +
+        '</span>' +
+        '<span class="badge bg-dark">' + (p.ini || 0) + '</span>';
+      iniList.appendChild(li);
+    });
+    highlightIni();
+  }
+  function highlightIni() {
+    Array.prototype.forEach.call(iniList.children, function (li, idx) {
+      if (idx === iniIdx) li.classList.add("active"); else li.classList.remove("active");
+    });
+  }
+
+  var nextBtn = document.getElementById("nextTurn");
+  var prevBtn = document.getElementById("prevTurn");
+  if (nextBtn) nextBtn.addEventListener("click", function () {
+    if (!party.length) return;
+    iniIdx = (iniIdx + 1) % party.length; highlightIni();
+  });
+  if (prevBtn) prevBtn.addEventListener("click", function () {
+    if (!party.length) return;
+    iniIdx = (iniIdx - 1 + party.length) % party.length; highlightIni();
+  });
+
+  if (btnStartCombat) {
+    btnStartCombat.addEventListener("click", function () {
+      if (!party.length) { alert("Adicione personagens antes de iniciar o combate."); return; }
+      rollInitiative(); iniIdx = 0; renderIni();
+      var el = document.getElementById("modal-combate");
+      var modal = new bootstrap.Modal(el); modal.show();
+    });
+  }
+  if (btnOpenIni) {
+    btnOpenIni.addEventListener("click", function () {
+      if (!party.length) return; iniIdx = 0; renderIni();
+    });
+  }
+
+  renderParty();
+})();
+</script>

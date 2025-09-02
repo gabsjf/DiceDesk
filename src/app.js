@@ -8,6 +8,7 @@ import expressLayouts from "express-ejs-layouts";
 import dashboardRouter from "./routes/dashboard.routes.js";
 import campanhasRouter from "./routes/campanhas.routes.js";
 import { fileURLToPath } from "url";
+import sessoesRouter from "./routes/sessoes.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -15,7 +16,7 @@ const __dirname  = path.dirname(__filename);
 const app = express();
 
 app.use(morgan("dev"));
-
+app.use("/sessoes", sessoesRouter);
 app.use(express.static(path.resolve(__dirname, "../public")));
 
 app.set("views", path.join(__dirname, "views"));

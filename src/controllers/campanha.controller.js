@@ -1,150 +1,142 @@
 // src/controllers/campanha.controller.js
 import { CampanhaModel } from "../models/campanha.model.js";
-import { body, validationResult } from "express-validator";
 
-/* ===========================
- * LISTA
- * =========================== */
+/* ========= LISTA ========= */
 export function index(req, res) {
-  const campanhas = CampanhaModel.listar();
-
-  // Lista única de sistemas para o filtro da view
-  const sistemas = [...new Set(campanhas.map(c => c.sistema).filter(Boolean))];
-
+  const campanhas = CampanhaModel.findAll();
   res.render("campanhas/index", {
-    title: "Campanhas",
-    active: "campanhas",
-    campanhas,
-    sistemas
+    layout: "_layout",
+    titulo: "Campanhas",
+    campanhas
   });
 }
 
-/* ===========================
- * CRIAR (GET)
- * =========================== */
+/* ========= CRIAR ========= */
 export function criarGet(req, res) {
   res.render("campanhas/criar", {
-    title: "Criar Nova Campanha",
-    active: "campanhas",
-    campanha: {},
-    errors: {}
+    layout: "_layout",
+    titulo: "Criar campanha",
+    errors: null,
+    values: {}
   });
 }
 
-/* ===========================
- * CRIAR (POST)
- * =========================== */
-export const criarPost = [
-  body("nome").trim().notEmpty().withMessage("O nome da campanha é obrigatório."),
-  body("sistema").trim().notEmpty().withMessage("O sistema de jogo é obrigatório."),
-  body("descricao").trim().optional({ nullable: true }),
+export function criarPost(req, res) {
+  const { nome, sistema, descricao } = req.body || {};
+  const values = { nome, sistema, descricao };
 
-  (req, res) => {
-    const errors = validationResult(req);
-    const { nome, sistema, descricao } = req.body;
+  const errors = {};
+  if (!nome || !nome.trim()) errors.nome = "O nome é obrigatório.";
+  if (!sistema || !sistema.trim()) errors.sistema = "O sistema é obrigatório.";
 
-    if (!errors.isEmpty()) {
-      return res.status(400).render("campanhas/criar", {
-        title: "Criar Nova Campanha",
-        active: "campanhas",
-        campanha: { nome, sistema, descricao },
-        errors: errors.mapped()
-      });
-    }
-
-    const nova = CampanhaModel.criar({ nome, sistema, descricao });
-    req.session.flash = { success: `Campanha '${nova.nome}' criada (Id ${nova.id}).` };
-    res.redirect("/campanhas");
+  if (Object.keys(errors).length) {
+    return res.status(400).render("campanhas/criar", {
+      layout: "_layout",
+      titulo: "Criar campanha",
+      errors,
+      values
+    });
   }
-];
 
-/* ===========================
- * DETALHES (GET)
- * =========================== */
+  let capaUrl = null;
+  if (req.file) {
+    // se você usa upload de imagem de capa, o middleware multer coloca req.file
+    capaUrl = `/uploads/${req.file.filename}`;
+  }
 
-import { SessaoModel } from "../models/sessao.model.js";
+  const criada = CampanhaModel.create({
+    nome: nome.trim(),
+    sistema: sistema.trim(),
+    descricao: (descricao || "").trim(),
+    capaUrl
+  });
+
+  return res.redirect(`/campanhas/${criada.id}`);
+}
+
+/* ========= DETALHES ========= */
 export function detalhes(req, res) {
-  const campanha = CampanhaModel.obterPorId(req.params.id);
-  if (!campanha) return res.status(404).send("Campanha não encontrada");
+  const { id } = req.params;
+  const campanha = CampanhaModel.findById(id); // <-- aqui trocamos para findById
 
-  const sessoes = SessaoModel.listarPorCampanha(campanha.id);
-  const campanhaView = { ...campanha, sessoes };
+  if (!campanha) {
+    return res.status(404).send("Campanha não encontrada.");
+  }
+
+  // garante array para evitar crash na view
+  campanha.sessoes = campanha.sessoes || [];
 
   res.render("campanhas/detalhes", {
-    title: "Detalhes da Campanha",
-    active: "campanhas",
-    campanha: campanhaView,
-    sessoes,
-    errors: {},
-    csrfToken: req.csrfToken()  // <— explícito
+    layout: "_layout",
+    titulo: campanha.nome,
+    campanha,
+    errors: null
   });
 }
 
-
-/* ===========================
- * EDITAR (GET)
- * =========================== */
+/* ========= EDITAR ========= */
 export function editarGet(req, res) {
-  const campanha = CampanhaModel.obterPorId(req.params.id);
-  if (!campanha) return res.status(404).send("Campanha não encontrada");
+  const { id } = req.params;
+  const campanha = CampanhaModel.findById(id);
+  if (!campanha) return res.status(404).send("Campanha não encontrada.");
 
   res.render("campanhas/editar", {
-    title: "Editar Campanha",
-    active: "campanhas",
-    campanha,
-    errors: {}
+    layout: "_layout",
+    titulo: `Editar — ${campanha.nome}`,
+    errors: null,
+    values: campanha
   });
 }
 
-/* ===========================
- * EDITAR (POST)
- * =========================== */
-export const editarPost = [
-  body("nome").trim().notEmpty().withMessage("O nome da campanha é obrigatório."),
-  body("sistema").trim().notEmpty().withMessage("O sistema de jogo é obrigatório."),
-  body("descricao").trim().optional({ nullable: true }),
+export function editarPost(req, res) {
+  const { id } = req.params;
+  const campanha = CampanhaModel.findById(id);
+  if (!campanha) return res.status(404).send("Campanha não encontrada.");
 
-  (req, res) => {
-    const errors = validationResult(req);
-    const id = req.params.id;
-    const { nome, sistema, descricao } = req.body;
+  const { nome, sistema, descricao } = req.body || {};
+  const errors = {};
+  if (!nome || !nome.trim()) errors.nome = "O nome é obrigatório.";
+  if (!sistema || !sistema.trim()) errors.sistema = "O sistema é obrigatório.";
 
-    if (!errors.isEmpty()) {
-      return res.status(400).render("campanhas/editar", {
-        title: "Editar Campanha",
-        active: "campanhas",
-        campanha: { id, nome, sistema, descricao },
-        errors: errors.mapped()
-      });
-    }
-
-    const atualizada = CampanhaModel.atualizar(id, { nome, sistema, descricao });
-    if (!atualizada) return res.status(404).send("Campanha não encontrada");
-
-    req.session.flash = { success: `Campanha '${atualizada.nome}' atualizada.` };
-    res.redirect("/campanhas");
+  if (Object.keys(errors).length) {
+    return res.status(400).render("campanhas/editar", {
+      layout: "_layout",
+      titulo: `Editar — ${campanha.nome}`,
+      errors,
+      values: { ...campanha, nome, sistema, descricao }
+    });
   }
-];
 
-/* ===========================
- * APAGAR (GET)
- * =========================== */
+  let patch = {
+    nome: nome.trim(),
+    sistema: sistema.trim(),
+    descricao: (descricao || "").trim()
+  };
+
+  if (req.file) {
+    patch.capaUrl = `/uploads/${req.file.filename}`;
+  }
+
+  CampanhaModel.update(id, patch);
+  return res.redirect(`/campanhas/${id}`);
+}
+
+/* ========= APAGAR ========= */
 export function apagarGet(req, res) {
-  const campanha = CampanhaModel.obterPorId(req.params.id);
-  if (!campanha) return res.status(404).send("Campanha não encontrada");
+  const { id } = req.params;
+  const campanha = CampanhaModel.findById(id);
+  if (!campanha) return res.status(404).send("Campanha não encontrada.");
 
   res.render("campanhas/apagar", {
-    title: "Apagar Campanha",
-    active: "campanhas",
+    layout: "_layout",
+    titulo: `Apagar — ${campanha.nome}`,
     campanha
   });
 }
 
-/* ===========================
- * APAGAR (POST)
- * =========================== */
 export function apagarPost(req, res) {
-  const ok = CampanhaModel.remover(req.params.id);
-  if (ok) req.session.flash = { success: "Campanha removida." };
-  res.redirect("/campanhas");
+  const { id } = req.params;
+  const ok = CampanhaModel.remove(id);
+  if (!ok) return res.status(404).send("Campanha não encontrada.");
+  return res.redirect("/campanhas");
 }

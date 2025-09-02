@@ -1,0 +1,282 @@
+/* =========================
+   JOGAR.CSS — DiceDesk
+   ========================= */
+
+/* ===== Fallback de variáveis (se app.css não carregou) ===== */
+:root {
+  --bg: var(--bg, #0f1117);
+  --surface: var(--surface, #151a23);
+  --surface-2: var(--surface-2, #1b2230);
+  --text: var(--text, #e7e9ee);
+  --muted: var(--muted, #98a2b3);
+  --primary: var(--primary, #8b5cf6);
+  --aether: var(--aether, #22e3a8);
+  --danger: var(--danger, #ef4444);
+  --warning: #ffb020;
+  --success: #22c55e;
+  --radius: var(--radius, 16px);
+  --finish: var(--finish, #ff8c00);
+  --ring: 0 0 0 2px rgba(139,92,246,.35);
+}
+
+/* ===== Layout ===== */
+.jogar-container {
+  display: flex;
+  gap: 1rem;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+}
+
+/* ===== Sidebar ===== */
+.jogar-sidebar {
+  width: 268px;
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00)) , var(--surface-2);
+  border-right: 1px solid rgba(255,255,255,.08);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.jogar-sidebar h6 {
+  font-size: .75rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: .5px;
+  margin: 0 0 .25rem;
+}
+
+.tool-group {
+  display: grid;
+  gap: .5rem;
+}
+
+.tool {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .6rem .75rem;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, transform .12s ease;
+}
+.tool i { opacity: .9; }
+.tool:hover { border-color: rgba(139,92,246,.45); transform: translateY(-1px); }
+.tool:active { transform: translateY(0); }
+.tool.active { outline: var(--ring); }
+
+.sidebar-spacer { flex: 1; }
+
+/* Botão “finalizar” fixo na base da sidebar */
+.btn-finish-session {
+  width: 100%;
+  background: linear-gradient(180deg, #ffb454, var(--finish));
+  color: #1a1205;
+  font-weight: 800;
+  border: none;
+  border-radius: 12px;
+  padding: .75rem 1rem;
+  letter-spacing: .4px;
+  box-shadow: 0 8px 22px rgba(255,140,0,.14);
+}
+.btn-finish-session:hover { filter: brightness(1.04); }
+
+/* ===== Área principal ===== */
+.jogar-main {
+  flex: 1;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header da sessão */
+.jogar-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.jogar-header h2 {
+  font-family: "Cinzel", serif;
+  font-size: 1.28rem;
+  margin: 0;
+  color: var(--text);
+}
+.jogar-header .sub {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+/* ===== Grid de personagens ===== */
+.party-grid {
+  --pad: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 1rem;
+  padding: var(--pad);
+  overflow-y: auto;
+}
+
+.party-card {
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)) , var(--surface-2);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  padding: .9rem;
+  text-align: center;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.party-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.35);
+  border-color: rgba(139, 92, 246, .35);
+}
+
+.party-card h5 {
+  margin: .6rem 0 .1rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.party-card small { color: var(--muted); }
+
+/* Avatar e chips */
+.party-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--aether));
+  display: grid; place-items: center;
+  font-weight: 800; color: #fff; margin: 0 auto;
+  font-size: 1.1rem; letter-spacing: .5px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.25);
+}
+.chips {
+  display: inline-flex; gap: .4rem; margin-top: .5rem;
+}
+.chip {
+  font-size: .72rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10); color: var(--muted);
+}
+.chip.pc { background: rgba(34,227,168,.14); border-color: rgba(34,227,168,.25); color: #aefce3; }
+.chip.npc { background: rgba(139,92,246,.14); border-color: rgba(139,92,246,.25); color: #ccb9ff; }
+
+/* Barra de status (hp) — opcional, só exibir se tiver data-attrs) */
+.statusbar {
+  height: 8px; border-radius: 999px; margin-top: .6rem;
+  background: rgba(255,255,255,.08); overflow: hidden;
+}
+.statusbar > span {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, var(--success), #8de58f);
+  width: var(--hp, 60%);
+}
+
+/* Vazio elegante */
+.empty-state {
+  border: 1px dashed rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  padding: 2rem; text-align: center; color: var(--muted);
+  background: var(--surface);
+}
+.empty-state i { color: var(--primary); }
+
+/* ===== Utilitários de botões ===== */
+.btn-dice {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  border: none;
+  border-radius: 12px;
+}
+.btn-dice:hover { filter: brightness(1.06); }
+
+.btn-initiative {
+  background: var(--aether);
+  color: #032118;
+  font-weight: 800;
+  border: none;
+  border-radius: 12px;
+}
+.btn-initiative:hover { filter: brightness(1.06); }
+
+.btn-ring {
+  position: relative;
+  border: 1px solid rgba(255,255,255,.14);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 12px;
+  font-weight: 800;
+}
+.btn-ring::before {
+  content: ""; position: absolute; inset: -2px; border-radius: 14px;
+  background: linear-gradient(90deg, rgba(139,92,246,.5), rgba(34,227,168,.5));
+  filter: blur(10px); opacity: 0; transition: opacity .18s ease;
+}
+.btn-ring:hover::before { opacity: .6; }
+
+/* ===== Modais ===== */
+.modal .arc-card {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+}
+.modal .modal-header {
+  background: var(--surface-2);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.modal .modal-footer {
+  background: var(--surface);
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+/* Iniciativa */
+.ini-list .list-group-item {
+  background: var(--surface-2);
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--text);
+}
+.ini-list .list-group-item.active {
+  background: var(--primary) !important;
+  color: #fff !important;
+}
+
+/* Dados */
+.dice-result {
+  font-size: 2rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--primary);
+}
+
+/* Scrollbars do grid */
+.party-grid::-webkit-scrollbar { width: 10px; }
+.party-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 999px; }
+.party-grid::-webkit-scrollbar-track { background: transparent; }
+
+/* Acessibilidade: foco visível */
+.tool:focus-visible,
+.btn:focus-visible,
+.party-card:focus-within {
+  outline: var(--ring);
+  outline-offset: 2px;
+}
+
+/* Respeita usuários que preferem menos animações */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* ===== Responsivo ===== */
+@media (max-width: 992px) {
+  .jogar-sidebar { width: 220px; }
+}
+@media (max-width: 768px) {
+  .jogar-container { flex-direction: column; height: auto; }
+  .jogar-sidebar { width: 100%; border-right: none; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .party-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
