@@ -11,8 +11,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.resolve('./src/views'));
 
 // Middleware para arquivos estáticos (CSS, JS)
-app.use(express.static(path.resolve('./public')));
-app.use(express.urlencoded({ extended: true }));
+const staticDir = path.resolve(__dirname, "../public");
+app.use(express.static(staticDir));
 
 // Middleware para processar cookies e CSRF
 app.use(cookieParser());

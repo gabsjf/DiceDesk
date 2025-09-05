@@ -1,5 +1,4 @@
-<% layout("_layout") %>
-<link rel="stylesheet" href="/css/jogar.css?v=4">
+<link rel="stylesheet" href="/css/jogar.css?v=6">
 
 <div class="jogar-container">
   <!-- Sidebar -->
@@ -19,7 +18,6 @@
         <i class="bi bi-swords"></i> Iniciativa
       </button>
 
-      <!-- Abre o MESMO modal de notas, sem sair desta página -->
       <button
         class="tool"
         id="btnOpenNotes"
@@ -40,7 +38,6 @@
     </form>
   </aside>
 
-  <!-- Main -->
   <main class="jogar-main">
     <div class="jogar-header">
       <h2><i class="bi bi-controller me-2"></i><%= (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' %></h2>
@@ -51,12 +48,9 @@
       </span>
     </div>
 
-    <!-- Grid de personagens -->
     <div class="party-grid" id="partyGrid"></div>
   </main>
 </div>
-
-<!-- Modal: personagem -->
 <div class="modal fade" id="modal-personagem" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content arc-card" id="formPersonagem">
@@ -96,7 +90,6 @@
   </div>
 </div>
 
-<!-- Modal: dados -->
 <div class="modal fade" id="modal-dados" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content arc-card">
@@ -122,7 +115,6 @@
   </div>
 </div>
 
-<!-- Modal: combate -->
 <div class="modal fade" id="modal-combate" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content arc-card">
@@ -141,11 +133,9 @@
   </div>
 </div>
 
-<!-- ========= “campanha” fake para o partial funcionar aqui também ========= -->
 <% const campanha = { id: campanhaId, nome: (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' }; %>
 
-<!-- ========== PARTIAL DE NOTAS (mesmo arquivo) ========== -->
-<%- include('../partials/_notas') %>
+<%- include('../partials/_notas', { campanha }) %>
 
 <script>
 (function () {
@@ -162,8 +152,8 @@
   var btnStartCombat = document.getElementById("btnStartCombat");
   var btnOpenIni     = document.getElementById("btnOpenIni");
 
-  var party   = [];
-  var iniIdx  = 0;
+  var party  = [];
+  var iniIdx = 0;
 
   try { party = JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch (e) { party = []; }
 
