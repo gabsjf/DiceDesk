@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/jogar.css?v=6">
+<link rel="stylesheet" href="/css/jogar.css?v=13">
 
 <div class="jogar-container">
   <!-- Sidebar -->
@@ -10,13 +10,23 @@
         <i class="bi bi-person-plus"></i> Adicionar personagem
       </button>
 
-      <button class="tool" id="btnStartCombat">
-        <i class="bi bi-lightning-charge"></i> Iniciar combate
-      </button>
+      <% if (sessao && sessao.combat && sessao.combat.active) { %>
+        <form class="d-grid" method="post" action="/sessoes/<%= sessao.id %>/combat/finish">
+          <input type="hidden" name="xpTotal" id="xpTotalSidebar">
+          <button type="submit" class="tool">
+            <i class="bi bi-flag-fill"></i> Finalizar combate
+          </button>
+        </form>
+      <% } else { %>
+        <button class="tool" id="btnStartCombat">
+          <i class="bi bi-lightning-charge"></i> Iniciar combate
+        </button>
+      <% } %>
 
-      <button class="tool" id="btnOpenIni" data-bs-toggle="modal" data-bs-target="#modal-combate">
+      <!-- REMOVIDO: O botão Iniciativa está redundante -->
+      <!-- <button class="tool" id="btnOpenIni" data-bs-toggle="modal" data-bs-target="#modal-combate">
         <i class="bi bi-swords"></i> Iniciativa
-      </button>
+      </button> -->
 
       <button
         class="tool"
@@ -48,9 +58,114 @@
       </span>
     </div>
 
-    <div class="party-grid" id="partyGrid"></div>
+    <% if (sessao && sessao.combat && sessao.combat.active) { 
+          const activeP = sessao.combat.order[sessao.combat.turnIndex];
+          const activeId = activeP?.idRef;
+    %>
+      <!-- HEADER DO COMBATE -->
+      <div class="card mb-3">
+        <div class="card-body d-flex align-items-center gap-2 flex-wrap">
+          <span class="badge text-bg-dark">Round <%= sessao.combat.round %></span>
+          <span class="badge text-bg-primary">Turno de <strong><%= activeP?.name || "—" %></strong></span>
+
+          <div class="ms-auto d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-danger btn-pill btn-attack" type="button">
+              <i class="bi bi-crosshair me-1"></i> Atacar
+            </button>
+            <button class="btn btn-outline-success btn-pill btn-heal" type="button">
+              <i class="bi bi-heart me-1"></i> Curar
+            </button>
+            <button class="btn btn-outline-primary btn-pill btn-cond" type="button">
+              <i class="bi bi-magic me-1"></i> Condição
+            </button>
+            <form method="post" action="/sessoes/<%= sessao.id %>/combat/action" class="d-inline">
+              <input type="hidden" name="type" value="end_turn">
+              <button class="btn btn-primary btn-pill" type="submit">
+                <i class="bi bi-skip-end-fill me-1"></i> Próximo turno
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESTRUTURA SIMPLIFICADA PARA ROLAGEM -->
+      <div id="combatScroll" class="combat-scroll">
+        <div class="combat-grid row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-4 g-3 mb-0">
+          <% (sessao.combat.order || []).forEach(p => { 
+                const isActive = String(p.idRef) === String(activeId);
+                const hpPct = p.hpMax ? Math.max(0, Math.round((p.hp / p.hpMax) * 100)) : 0;
+                
+                let hpColorClass = 'bg-success'; // 100% - 50%
+                if (hpPct < 50 && hpPct >= 20) { hpColorClass = 'bg-warning'; } // 49% - 20%
+                else if (hpPct < 20) { hpColorClass = 'bg-danger'; } // 19% - 0%
+          %>
+            <div class="col">
+              <div class="card h-100 <%= isActive ? 'turn-active' : 'turn-inactive' %>">
+                <div class="card-body">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0"><%= p.name %></h5>
+                    <span class="badge <%= p.type === 'PC' ? 'text-bg-success' : 'text-bg-secondary' %> badge-chip"><%= p.type %></span>
+                  </div>
+
+                  <div class="small text-muted mb-2">Init <%= p.init %> • Nível <%= p.level || 0 %> • CA <%= p.ca || '—' %></div>
+
+                  <div class="mb-2">
+                    <strong>HP</strong>:
+                    <%= p.hp %> / <%= p.hpMax %>
+                    <div class="progress mt-1" style="height:8px;">
+                      <!-- Barra colorida com o status de vida durante o combate -->
+                      <div class="progress-bar <%= hpColorClass %>" role="progressbar" style="width: <%= hpPct %> %"></div>
+                    </div>
+                  </div>
+
+                  <div class="mb-0">
+                    <strong>Condições</strong>:
+                    <% if ((p.conditions||[]).length === 0) { %>
+                      <span class="text-muted">nenhuma</span>
+                    <% } else { %>
+                      <div class="d-flex flex-wrap gap-1">
+                        <% (p.conditions || []).forEach(c => { %>
+                          <form method="post" action="/sessoes/<%= sessao.id %>/combat/action" class="d-inline">
+                            <input type="hidden" name="type" value="condition_remove">
+                            <input type="hidden" name="sourceId" value="<%= activeId %>">
+                            <input type="hidden" name="targetId" value="<%= p.idRef %>">
+                            <input type="hidden" name="condition" value="<%= c %>">
+                            <button class="badge text-bg-warning text-dark border-0" title="Remover condição <%= c %>">
+                              <%= c %> &times;
+                            </button>
+                          </form>
+                        <% }) %>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+      <!-- FIM DA ESTRUTURA SIMPLIFICADA -->
+
+      <div class="card combat-footer mt-3">
+        <div class="card-body d-flex align-items-center gap-2">
+          <form class="d-flex align-items-center gap-2 ms-auto" method="post" action="/sessoes/<%= sessao.id %>/combat/finish">
+            <label class="form-label mb-0">XP total</label>
+            <input name="xpTotal" id="xpTotalFooter" type="number" min="0" class="form-control" style="width:140px;" placeholder="ex.: 1800">
+            <!-- Adicionada informação para o JS saber o que salvar -->
+            <input type="hidden" name="combatOrderJson" id="combatOrderJson" value='<%= JSON.stringify(sessao.combat.order) %>'>
+            <button class="btn btn-warning"><i class="bi bi-flag-fill me-1"></i> Finalizar combate</button>
+          </form>
+        </div>
+      </div>
+
+    <% } else { %>
+      <!-- SEM COMBATE: GRID DE PERSONAGENS LOCAL (LOCALSTORAGE) -->
+      <div class="party-grid" id="partyGrid"></div>
+    <% } %>
   </main>
 </div>
+
+<!-- MODAL: ADICIONAR/EDITAR PERSONAGEM -->
 <div class="modal fade" id="modal-personagem" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content arc-card" id="formPersonagem">
@@ -72,13 +187,17 @@
           </select>
         </div>
         <div class="row g-3">
-          <div class="col-6">
+          <div class="col-4">
             <label class="form-label">Nível (opcional)</label>
             <input type="number" min="1" class="form-control" id="personagem-nivel" placeholder="ex.: 3">
           </div>
-          <div class="col-6">
-            <label class="form-label">HP % (opcional)</label>
-            <input type="number" min="0" max="100" class="form-control" id="personagem-hp" placeholder="0–100">
+          <div class="col-4">
+            <label class="form-label">CA (opcional)</label>
+            <input type="number" min="0" class="form-control" id="personagem-ca" placeholder="ex.: 15">
+          </div>
+          <div class="col-4">
+            <label class="form-label">HP Máximo</label>
+            <input type="number" min="1" class="form-control" id="personagem-hp-max" required placeholder="PV total">
           </div>
         </div>
       </div>
@@ -90,6 +209,7 @@
   </div>
 </div>
 
+<!-- MODAL: DADOS -->
 <div class="modal fade" id="modal-dados" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content arc-card">
@@ -115,26 +235,94 @@
   </div>
 </div>
 
+<!-- MODAL: INICIATIVA (Adicionamos inputs) -->
 <div class="modal fade" id="modal-combate" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content arc-card">
       <div class="modal-header border-bottom-0">
-        <h5 class="modal-title">Ordem de iniciativa</h5>
+        <h5 class="modal-title">Ordem de iniciativa (Insira o valor)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
+      <!-- Conteúdo da lista é gerado via JS -->
       <div class="modal-body">
         <ul class="list-group ini-list" id="iniList"></ul>
       </div>
       <div class="modal-footer border-top-0">
+        <!-- Mantido para navegação manual -->
         <button class="btn btn-ring" id="prevTurn">◀ Anterior</button>
         <button class="btn btn-primary" id="nextTurn">Próximo ▶</button>
+        <!-- Alteramos o botão Iniciar para rodar a confirmação/leitura manual -->
+        <button class="btn btn-success" id="confirmStart"><i class="bi bi-lightning-charge me-1"></i> Iniciar</button>
       </div>
     </div>
   </div>
 </div>
 
-<% const campanha = { id: campanhaId, nome: (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' }; %>
+<!-- MODAL: AÇÃO COM SELEÇÃO DE ALVO -->
+<div class="modal fade" id="modal-acao" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content arc-card" id="formAcao" method="post" action="/sessoes/<%= sessao?.id %>/combat/action">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title" id="acaoTitulo">Ação</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="type" id="acaoType" value="damage">
+        <input type="hidden" name="sourceId" id="acaoSourceId" value="">
+        <div class="mb-3">
+          <label class="form-label">Alvo</label>
+          <select class="form-select" name="targetId" id="acaoTargetId"></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" id="acaoLabel">Dano</label>
+          <input type="number" min="0" name="amount" id="acaoAmount" class="form-control" placeholder="valor">
+        </div>
+        <div class="form-text" id="acaoHint"></div>
+      </div>
+      <div class="modal-footer border-top-0">
+        <button class="btn btn-ring" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" type="submit" id="acaoSubmit">Aplicar</button>
+      </div>
+    </form>
+  </div>
+</div>
 
+<!-- MODAL: CONDIÇÃO COM SELEÇÃO DE ALVO -->
+<div class="modal fade" id="modal-cond" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content arc-card" id="formCondAdd" method="post" action="/sessoes/<%= sessao?.id %>/combat/action">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title" id="condTitulo">Adicionar condição</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="type" value="condition_add">
+        <input type="hidden" name="sourceId" id="condSourceId" value="">
+        <div class="mb-3">
+          <label class="form-label">Alvo</label>
+          <select class="form-select" name="targetId" id="condTargetId"></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Condição</label>
+          <select name="condition" class="form-select" id="condSelect">
+            <% (typeof conditions !== 'undefined' && conditions ? conditions : [
+              "Amedrontado","Atordoado","Caído","Cego","Enfeitiçado","Envenenado","Exausto",
+              "Imobilizado","Inconsciente","Incapacitado","Invisível","Paralisado","Petrificado","Surdo","Agarra do","Contido"
+            ]).forEach(c => { %>
+              <option value="<%= c %>"><%= c %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer border-top-0">
+        <button class="btn btn-ring" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Adicionar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<% const campanha = { id: campanhaId, nome: (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' }; %>
 <%- include('../partials/_notas', { campanha }) %>
 
 <script>
@@ -143,21 +331,63 @@
   var campanhaId = "<%= campanhaId ? campanhaId : '' %>";
   var storageKey = "party:" + sessaoId;
 
+  // JSON.stringify é usado para passar dados complexos do servidor para o cliente
+  var COMBAT = <%- JSON.stringify(sessao && sessao.combat ? {
+    round: sessao.combat.round,
+    turnIndex: sessao.combat.turnIndex,
+    activeId: sessao.combat.order[sessao.combat.turnIndex]?.idRef,
+    activeName: sessao.combat.order[sessao.combat.turnIndex]?.name,
+    order: sessao.combat.order
+  } : null) %>;
+
   var partyGrid      = document.getElementById("partyGrid");
   var formPersonagem = document.getElementById("formPersonagem");
   var diceBtn        = document.getElementById("rollDiceBtn");
   var diceResult     = document.getElementById("diceResult");
   var iniList        = document.getElementById("iniList");
-
   var btnStartCombat = document.getElementById("btnStartCombat");
-  var btnOpenIni     = document.getElementById("btnOpenIni");
+  // var btnOpenIni     = document.getElementById("btnOpenIni"); // REMOVIDO
+  var btnConfirm     = document.getElementById("confirmStart");
+
+  var xpSidebar = document.getElementById("xpTotalSidebar");
+  var xpFooter  = document.getElementById("xpTotalFooter");
+  if (xpFooter && xpSidebar) {
+    xpFooter.addEventListener("input", function(){ xpSidebar.value = xpFooter.value; });
+  }
 
   var party  = [];
   var iniIdx = 0;
 
   try { party = JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch (e) { party = []; }
+  
+  // CORREÇÃO ESSENCIAL #2: Função para encontrar um personagem na party por ID
+  function findPersonagemById(id) {
+      return party.find(p => String(p.id) === String(id));
+  }
+
+  /**
+   * Ajusta a altura máxima da área de combate para permitir rolagem vertical.
+   */
+  function adjustCombatScroll() {
+    var scroll = document.getElementById("combatScroll");
+    if (!scroll) return;
+
+    var top = scroll.getBoundingClientRect().top;
+    var footer = document.querySelector(".combat-footer");
+    var footerH = footer ? footer.getBoundingClientRect().height : 0;
+    var gap = 16;
+    var h = window.innerHeight - top - footerH - gap;
+    scroll.style.maxHeight = Math.max(200, h) + "px";
+  }
+
+  // disparos (garante que o cálculo da altura rode ao carregar e redimensionar)
+  window.addEventListener("resize", adjustCombatScroll);
+  window.addEventListener("load", adjustCombatScroll);
+  setTimeout(adjustCombatScroll, 0);
+
 
   function renderParty() {
+    if (!partyGrid) return;
     partyGrid.innerHTML = "";
     if (!party.length) {
       partyGrid.innerHTML =
@@ -167,18 +397,41 @@
     party.forEach(function (p) {
       var card = document.createElement("div");
       card.className = "party-card";
-      var hpPct = (typeof p.hp === "number" && p.hp >= 0 && p.hp <= 100) ? p.hp : null;
+      
+      // CALCULAR PORCENTAGEM DE HP COM BASE EM HP ATUAL E MÁXIMO
+      const hpCurrent = p.hpCurrent || p.hpMax || 0;
+      const hpMax = p.hpMax || 1; // Evita divisão por zero
+      const hpPct = Math.max(0, Math.min(100, Math.round((hpCurrent / hpMax) * 100)));
+      
       var nivelHtml = p.nivel ? ('<span class="chip">Nvl ' + p.nivel + '</span>') : '';
+      var caHtml = p.ca ? ('<span class="chip">CA ' + p.ca + '</span>') : '';
+      
       card.innerHTML =
         '<div class="party-avatar">' + (p.name && p.name[0] ? p.name[0].toUpperCase() : "?") + '</div>' +
         '<h5>' + (p.name || "Sem nome") + '</h5>' +
         '<div class="chips">' +
           '<span class="chip ' + (p.isPc ? 'pc' : 'npc') + '">' + (p.isPc ? 'PC' : 'NPC') + '</span>' +
           nivelHtml +
+          caHtml + // EXIBE CA
         '</div>' +
-        (hpPct !== null ? ('<div class="statusbar" style="--hp:' + hpPct + '%;"><span></span></div>') : '');
+        // EXIBE HP ATUAL/MÁXIMO
+        '<div class="text-muted small mt-2">HP: ' + hpCurrent + ' / ' + p.hpMax + '</div>' +
+        // BARRA DE PROGRESSO SIMPLES (FORA DO COMBATE)
+        // Usamos as classes do Bootstrap e um estilo para o fundo ficar da cor do background
+        '<div class="progress mt-1" style="height:8px; background-color: var(--surface-2); border-radius: 999px;">' +
+            // O estilo de cor é aplicado aqui. A cor será verde/amarelo/vermelho se usar classes CSS adequadas no seu jogar.css
+            '<div class="progress-bar" role="progressbar" style="width: ' + hpPct + '%; background-color: ' + getHpBarColor(hpPct) + ';"></div>' +
+        '</div>';
+        
       partyGrid.appendChild(card);
     });
+  }
+
+  // Helper para obter a cor da barra baseada na porcentagem
+  function getHpBarColor(hpPct) {
+      if (hpPct > 50) return 'var(--success)';
+      if (hpPct > 20) return 'var(--warning)';
+      return 'var(--danger)';
   }
 
   if (formPersonagem) {
@@ -188,22 +441,53 @@
       var nome    = (document.getElementById("personagem-nome").value || "").trim();
       var tipo    = document.getElementById("personagem-tipo").value;
       var nivelV  = document.getElementById("personagem-nivel").value;
-      var hpV     = document.getElementById("personagem-hp").value;
+      var caV     = document.getElementById("personagem-ca").value;
+      var hpMaxV  = document.getElementById("personagem-hp-max").value; // NOVO HP MÁXIMO
 
       var nivel   = nivelV === "" ? null : parseInt(nivelV, 10);
-      var hp      = hpV === "" ? null : Math.max(0, Math.min(100, parseInt(hpV, 10)));
-      if (!nome) return;
-
+      var ca      = caV === "" ? null : parseInt(caV, 10); // NOVO CA
+      
+      // HP: agora baseado em HP Max
+      var hpMax   = hpMaxV === "" ? null : Math.max(1, parseInt(hpMaxV, 10));
+      if (!nome || !hpMax) { 
+        // alert("O nome e o HP Máximo são obrigatórios."); // Usando alert() aqui é problemático. Mantendo para compatibilidade.
+        return; 
+      }
+      
+      // NOVO: HP Atual é setado como HP Max no momento da criação/edição
+      var hpCurrent = hpMax; 
+      
       var editingId = idEl.value ? Number(idEl.value) : null;
       if (editingId) {
         party = party.map(function (p) {
           if (p.id === editingId) {
-            return { id: p.id, name: nome, isPc: (tipo === "pc"), nivel: (nivel ?? null), hp: (hp ?? null), ini: p.ini || 0 };
+            // Se editando, mantém HP Atual, mas o limita ao novo Máximo
+            const currentHp = p.hpCurrent || p.hpMax || 0;
+            const newHpCurrent = Math.min(currentHp, hpMax); 
+            return { 
+                id: p.id, 
+                name: nome, 
+                isPc: (tipo === "pc"), 
+                nivel: (nivel ?? null), 
+                ca: (ca ?? null), // Salva CA
+                hpMax: hpMax, 
+                hpCurrent: newHpCurrent, // Mantém o atual ou ajusta para o novo max
+                ini: p.ini || 0 
+            };
           }
           return p;
         });
       } else {
-        party.push({ id: Date.now(), name: nome, isPc: (tipo === "pc"), nivel: (nivel ?? null), hp: (hp ?? null), ini: 0 });
+        party.push({ 
+            id: Date.now(), 
+            name: nome, 
+            isPc: (tipo === "pc"), 
+            nivel: (nivel ?? null), 
+            ca: (ca ?? null), // Salva CA
+            hpMax: hpMax, 
+            hpCurrent: hpCurrent, // Salva HP Atual (igual ao Max)
+            ini: 0 
+        });
       }
 
       localStorage.setItem(storageKey, JSON.stringify(party));
@@ -223,58 +507,236 @@
     });
   }
 
-  function rollInitiative() {
-    party = party.map(function (p) {
-      return Object.assign({}, p, { ini: Math.floor(Math.random() * 20) + 1 + (p.isPc ? 2 : 0) });
-    });
-    party.sort(function (a, b) { return (b.ini || 0) - (a.ini || 0); });
+  /* FUNÇÃO ALTERADA: Não rola dados, apenas garante que party está no storage */
+  function updatePartyStorage() {
     localStorage.setItem(storageKey, JSON.stringify(party));
   }
+
   function renderIni() {
+    if (!iniList) return;
     iniList.innerHTML = "";
-    party.forEach(function (p) {
+    
+    // Ordena a lista temporariamente pela iniciativa atual (ini) para mostrar a ordem
+    const sortedParty = [...party].sort((a, b) => (b.ini || 0) - (a.ini || 0));
+
+    sortedParty.forEach(function (p) {
+      const inputId = 'ini-input-' + p.id; 
+      
       var li = document.createElement("li");
       li.className = "list-group-item d-flex justify-content-between align-items-center";
+      
       li.innerHTML =
-        '<span>' + p.name + ' ' +
-          (p.isPc ? '<span class="badge bg-success ms-2">PC</span>' : '<span class="badge bg-secondary ms-2">NPC</span>') +
-        '</span>' +
-        '<span class="badge bg-dark">' + (p.ini || 0) + '</span>';
+        '<div class="d-flex align-items-center flex-grow-1">' + 
+          '<span>' + p.name + ' ' +
+            (p.isPc ? '<span class="badge bg-success ms-2">PC</span>' : '<span class="badge bg-secondary ms-2">NPC</span>') +
+          '</span>' +
+        '</div>' +
+        '<div class="d-flex align-items-center">' +
+          '<label for="' + inputId + '" class="form-label mb-0 me-2 small text-muted">INIT</label>' +
+          '<input type="number" min="0" class="form-control form-control-sm" style="width: 70px;" id="' + inputId + '" data-personagem-id="' + p.id + '" value="' + (p.ini || '') + '">' +
+        '</div>';
+        
       iniList.appendChild(li);
     });
-    highlightIni();
   }
-  function highlightIni() {
-    Array.prototype.forEach.call(iniList.children, function (li, idx) {
-      if (idx === iniIdx) li.classList.add("active"); else li.classList.remove("active");
-    });
-  }
+  
+  // Função para ler os valores digitados e ordenar a party
+  function confirmInitiative() {
+      const iniValues = {};
+      document.querySelectorAll('#modal-combate input[data-personagem-id]').forEach(input => {
+          const id = Number(input.getAttribute('data-personagem-id'));
+          const value = parseInt(input.value, 10);
+          if (!isNaN(value)) {
+              iniValues[id] = value;
+          }
+      });
 
+      party = party.map(p => ({
+          ...p,
+          ini: iniValues[p.id] !== undefined ? iniValues[p.id] : (p.ini || 0)
+      }));
+
+      party.sort((a, b) => (b.ini || 0) - (a.ini || 0));
+      iniIdx = 0; 
+      updatePartyStorage();
+      
+      return party;
+  }
+  
+  // Removido highlightIni já que não é usado
+  
   var nextBtn = document.getElementById("nextTurn");
   var prevBtn = document.getElementById("prevTurn");
   if (nextBtn) nextBtn.addEventListener("click", function () {
     if (!party.length) return;
-    iniIdx = (iniIdx + 1) % party.length; highlightIni();
+    iniIdx = (iniIdx + 1) % party.length; 
   });
   if (prevBtn) prevBtn.addEventListener("click", function () {
     if (!party.length) return;
-    iniIdx = (iniIdx - 1 + party.length) % party.length; highlightIni();
+    iniIdx = (iniIdx - 1 + party.length) % party.length; 
   });
 
   if (btnStartCombat) {
     btnStartCombat.addEventListener("click", function () {
       if (!party.length) { alert("Adicione personagens antes de iniciar o combate."); return; }
-      rollInitiative(); iniIdx = 0; renderIni();
+      renderIni(); 
       var el = document.getElementById("modal-combate");
       var modal = new bootstrap.Modal(el); modal.show();
     });
   }
-  if (btnOpenIni) {
-    btnOpenIni.addEventListener("click", function () {
-      if (!party.length) return; iniIdx = 0; renderIni();
+  
+  if (btnConfirm) {
+    btnConfirm.addEventListener("click", async function () {
+      if (!party.length) return;
+      
+      const orderedParty = confirmInitiative(); 
+      
+      var order = orderedParty.map(function (p) {
+        // CORREÇÃO #1: Usar HP Atual (hpCurrent) como HP inicial, que é salvo no localStorage
+        const hpCurrent = p.hpCurrent || p.hpMax || 0; 
+        return {
+          idRef: String(p.id),
+          name: p.name,
+          type: p.isPc ? "PC" : "NPC",
+          level: p.nivel || 0,
+          ca: p.ca || null, 
+          init: p.ini || 0,
+          hp: hpCurrent, // HP atual
+          hpMax: p.hpMax || 100
+        };
+      });
+      
+      try {
+        const resp = await fetch("/sessoes/" + encodeURIComponent(sessaoId) + "/combat/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roundStart: 1, order })
+        });
+        
+        if (!resp.ok) { 
+            const errorText = await resp.text();
+            alert("Falha ao iniciar combate: " + errorText); 
+            return; 
+        }
+        
+        var el = document.getElementById("modal-combate");
+        var modal = bootstrap.Modal.getInstance(el);
+        if (modal) modal.hide();
+        location.reload();
+        
+      } catch (e) {
+        console.error(e);
+        alert("Erro de rede ao iniciar combate.");
+      }
     });
   }
 
+  // CORREÇÃO ESSENCIAL #2: Adiciona lógica para salvar o HP e CA após finalizar o combate
+  document.querySelectorAll('form[action$="/combat/finish"]').forEach(form => {
+    form.addEventListener('submit', async function(e) {
+        // Pega a ordem final de combate do input oculto no formulário
+        const orderInput = document.getElementById('combatOrderJson');
+        if (!orderInput || !orderInput.value) return;
+
+        const finalOrder = JSON.parse(orderInput.value);
+        
+        // Atualiza o localStorage com o HP e CA final de cada personagem
+        let updatedParty = party.map(p => {
+            const combatData = finalOrder.find(cd => String(cd.idRef) === String(p.id));
+            if (combatData) {
+                return {
+                    ...p,
+                    // Garante que o HP não seja negativo (CORREÇÃO #1)
+                    hpCurrent: Math.max(0, combatData.hp), 
+                    ca: combatData.ca || p.ca,
+                };
+            }
+            return p;
+        });
+
+        // Salva os dados atualizados no localStorage ANTES de enviar o POST para o servidor
+        party = updatedParty;
+        updatePartyStorage(); 
+        
+        // Permite que o formulário continue com o POST para o servidor
+        // (O servidor deve ter a lógica para desativar o combate)
+    });
+  });
+  
+  // REMOVIDO btnOpenIni do JS
+  // if (btnOpenIni) {
+  //   btnOpenIni.addEventListener("click", function () {
+  //     if (!party.length) return; 
+  //     renderIni(); 
+  //   });
+  // }
+
+
+  /* ===== AÇÕES GLOBAIS, ESCOLHENDO O ALVO NO MODAL ===== */
+  function populateTargetSelect(selectEl, includeSelfFor, preferredFirstOf) {
+    if (!COMBAT) return;
+    selectEl.innerHTML = "";
+    const activeId = COMBAT.activeId;
+
+    const canSelect = COMBAT.order.filter(p => {
+      if (includeSelfFor === "heal") return true;
+      return String(p.idRef) !== String(activeId);
+    });
+
+    canSelect.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.idRef;
+      opt.textContent = p.name + " • " + p.type;
+      selectEl.appendChild(opt);
+    });
+
+    // preferências
+    if (preferredFirstOf === "heal") {
+      selectEl.value = activeId;
+    } else if (preferredFirstOf === "damage") {
+      // se sobrar, mantém primeiro inimigo já como default
+      if (String(selectEl.value) === String(activeId)) {
+        const firstOther = canSelect.find(x => String(x.idRef) !== String(activeId));
+        if (firstOther) selectEl.value = firstOther.idRef;
+      }
+    }
+  }
+
+  function openActionModal(kind) {
+    if (!COMBAT) return;
+
+    var title = kind === "heal" ? "Curar alvo" : "Atacar alvo";
+    var label = kind === "heal" ? "Cura" : "Dano";
+    var hint  = kind === "heal"
+      ? "Informe a quantidade de vida a restaurar no alvo escolhido."
+      : "Informe a quantidade de dano para aplicar no alvo escolhido.";
+
+    document.getElementById("acaoTitulo").textContent  = title;
+    document.getElementById("acaoLabel").textContent   = label;
+    document.getElementById("acaoHint").textContent    = hint;
+
+    document.getElementById("acaoType").value    = kind;
+    document.getElementById("acaoSourceId").value = COMBAT.activeId;
+    document.getElementById("acaoAmount").value  = "";
+
+    var targetSel = document.getElementById("acaoTargetId");
+    populateTargetSelect(targetSel, kind, kind);
+
+    new bootstrap.Modal(document.getElementById("modal-acao")).show();
+  }
+
+  function openCondModal() {
+    if (!COMBAT) return;
+    document.getElementById("condSourceId").value = COMBAT.activeId;
+    populateTargetSelect(document.getElementById("condTargetId"), "heal", null);
+    new bootstrap.Modal(document.getElementById("modal-cond")).show();
+  }
+
+  document.querySelectorAll(".btn-attack").forEach(btn => btn.addEventListener("click", () => openActionModal("damage")));
+  document.querySelectorAll(".btn-heal").forEach(btn => btn.addEventListener("click", () => openActionModal("heal")));
+  document.querySelectorAll(".btn-cond").forEach(btn => btn.addEventListener("click", openCondModal));
+
+  /* ===== Parte sem combate: gerenciamento local ===== */
   renderParty();
 })();
 </script>

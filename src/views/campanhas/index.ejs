@@ -1,6 +1,12 @@
+<%
+// proteções contra undefined vindas do controller
+const _campanhas = Array.isArray(campanhas) ? campanhas : [];
+const _sistemas  = Array.isArray(sistemas)  ? sistemas  : [];
+%>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2 class="m-0" style="font-family:'Cinzel',serif; letter-spacing:.5px;">
-    <i class="bi bi-collection me-2"></i> Campanhas
+    <i class="bi bi-book me-2"></i> Campanhas
   </h2>
   <div class="d-flex gap-2">
     <a href="/campanhas/criar" class="btn btn-primary btn-ring">
@@ -9,68 +15,43 @@
   </div>
 </div>
 
-<!-- Controles -->
-<div class="row g-2 mb-3">
-  <div class="col-md-5">
-    <input id="cmpSearch" class="form-control" placeholder="Buscar por nome ou descrição..." />
-  </div>
-  <div class="col-md-3">
-    <select id="cmpFilterSistema" class="form-select">
-      <option value="">Todos os sistemas</option>
-      <% (sistemas || []).forEach(s => { %>
-        <option value="<%= s %>"><%= s %></option>
-      <% }) %>
-    </select>
-  </div>
-  <div class="col-md-3">
-    <select id="cmpSort" class="form-select">
-      <option value="recent">Mais recentes</option>
-      <option value="name-asc">Nome (A–Z)</option>
-      <option value="name-desc">Nome (Z–A)</option>
-    </select>
-  </div>
-  <div class="col-md-1 d-grid">
-    <button id="cmpClear" class="btn btn-ring">Limpar</button>
+<div class="arc-card p-3 mb-3">
+  <div class="row g-3">
+    <div class="col-md-6 col-lg-4">
+      <label class="form-label">Buscar</label>
+      <input id="cmpFilterSearch" type="search" class="form-control" placeholder="nome ou descrição">
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <label class="form-label">Sistema</label>
+      <select id="cmpFilterSistema" class="form-select">
+        <option value="">Todos os sistemas</option>
+        <% _sistemas.forEach(s => { %>
+          <option value="<%= s %>"><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
   </div>
 </div>
 
-<% if (!campanhas || campanhas.length === 0) { %>
+<% if (_campanhas.length === 0) { %>
   <div class="empty">
     <i class="bi bi-collection fs-1 d-block mb-2"></i>
-    <p class="mb-3">Você ainda não criou nenhuma campanha.</p>
-    <a href="/campanhas/criar" class="btn btn-primary btn-ring">
-      <i class="bi bi-plus-lg me-1"></i> Criar agora
-    </a>
+    <p class="mb-0">Nenhuma campanha encontrada.</p>
   </div>
 <% } else { %>
-  <div id="cmpGrid" class="row g-4">
-    <% campanhas.forEach(c => { 
-         const name = (c.nome || '');
-         const desc = (c.descricao || '');
-         const sis  = (c.sistema || '');
-         const created = c.createdAt ? new Date(c.createdAt).toISOString() : '';
-    %>
-      <div class="col-12 col-md-6 col-lg-4 cmp-card"
-           data-name="<%= name.toLowerCase() %>"
-           data-desc="<%= desc.toLowerCase() %>"
-           data-sis="<%= sis.toLowerCase() %>"
-           data-date="<%= created %>">
-
-        <div class="arc-card h-100">
-          <!-- Capa (quando houver c.capaUrl) -->
-          <div class="arc-cover" data-cover="<%= c.capaUrl || '' %>"></div>
-
+  <div id="cmpGrid" class="row g-3">
+    <% _campanhas.forEach(c => { %>
+      <div class="col-12 col-md-6 col-xl-4 cmp-card" data-sistema="<%= c.sistema || '' %>" data-name="<%= (c.nome || '') + ' ' + (c.descricao || '') %>">
+        <div class="arc-card h-100 campaign-card">
+          <div class="arc-cover" <% if (c.capaUrl) { %>
+               style="background-image:url('<%= c.capaUrl %>'); background-size:cover; background-position:center;"
+             <% } %>></div>
           <div class="arc-body">
             <div class="d-flex align-items-center justify-content-between mb-1">
-              <span class="arc-badge"><i class="bi bi-dice-5"></i> <%= sis %></span>
-              <% if (c.updatedAt) { %>
-                <span class="text-muted small"><i class="bi bi-clock me-1"></i> atualizado</span>
-              <% } %>
+              <span class="arc-badge"><i class="bi bi-dice-5"></i> <%= c.sistema || '—' %></span>
             </div>
-
-            <h3 class="arc-title"><%= name %></h3>
-            <p class="text-muted small mb-3"><%= desc %></p>
-
+            <h3 class="arc-title"><%= c.nome %></h3>
+            <p class="text-muted small mb-3"><%= c.descricao || 'Sem descrição.' %></p>
             <div class="mt-auto d-flex gap-2">
               <a class="btn btn-primary flex-fill" href="/campanhas/<%= c.id %>">
                 <i class="bi bi-play-fill me-1"></i> Entrar
@@ -78,98 +59,36 @@
               <a class="btn btn-ring" href="/campanhas/editar/<%= c.id %>" title="Editar">
                 <i class="bi bi-pencil"></i>
               </a>
-              <a class="btn btn-danger btn-ring" href="/campanhas/apagar/<%= c.id %>" title="Apagar">
-                <i class="bi bi-trash"></i>
-              </a>
+              <form method="post" action="/campanhas/<%= c.id %>/apagar">
+                <button class="btn btn-danger btn-ring" title="Apagar"><i class="bi bi-trash"></i></button>
+              </form>
             </div>
           </div>
         </div>
-
       </div>
     <% }) %>
   </div>
 <% } %>
 
 <script>
-// Aplica imagem de capa via CSS var (evita erros do linter em style com EJS)
-document.querySelectorAll('.arc-cover[data-cover]').forEach(el=>{
-  const url = el.getAttribute('data-cover');
-  if (url) el.style.setProperty('--cover-img', `url('${url}')`);
-});
+(function(){
+  const q = document.getElementById('cmpFilterSearch');
+  const sel = document.getElementById('cmpFilterSistema');
+  const cards = Array.from(document.querySelectorAll('.cmp-card'));
 
-// Filtro / busca / ordenação client-side
-(() => {
-  const q  = document.getElementById('cmpSearch');
-  const sf = document.getElementById('cmpFilterSistema');
-  const so = document.getElementById('cmpSort');
-  const cl = document.getElementById('cmpClear');
-  const cards = [...document.querySelectorAll('.cmp-card')];
-  const grid  = document.getElementById('cmpGrid');
-
-  function filterAndSort() {
-    const term = (q?.value || '').trim().toLowerCase();
-    const sis  = (sf?.value || '').trim().toLowerCase();
-    const sort = (so?.value || 'recent');
-
-    // filtra
-    const visible = [];
+  function applyFilters(){
+    const term = (q?.value || '').toLowerCase().trim();
+    const sistema = sel?.value || '';
     cards.forEach(el => {
-      const name = el.dataset.name || '';
-      const desc = el.dataset.desc || '';
-      const se   = el.dataset.sis  || '';
-      const matchText = !term || name.includes(term) || desc.includes(term);
-      const matchSis  = !sis || se === sis;
-      const show = matchText && matchSis;
-      el.style.display = show ? '' : 'none';
-      if (show) visible.push(el);
+      const sys = el.getAttribute('data-sistema') || '';
+      const name = (el.getAttribute('data-name') || '').toLowerCase();
+      const okSys = !sistema || sys === sistema;
+      const okTerm = !term || name.includes(term);
+      el.style.display = okSys && okTerm ? '' : 'none';
     });
-
-    // ordena os visíveis
-    const getDate = (el) => Date.parse(el.dataset.date || '') || 0;
-    const getName = (el) => (el.dataset.name || '');
-
-    visible.sort((a,b)=>{
-      if (sort === 'recent')    return getDate(b) - getDate(a);
-      if (sort === 'name-asc')  return getName(a).localeCompare(getName(b));
-      if (sort === 'name-desc') return getName(b).localeCompare(getName(a));
-      return 0;
-    });
-
-    // reordena no DOM
-    visible.forEach(el => grid.appendChild(el));
   }
 
-  q?.addEventListener('input', filterAndSort);
-  sf?.addEventListener('change', filterAndSort);
-  so?.addEventListener('change', filterAndSort);
-  cl?.addEventListener('click', () => {
-    if (q) q.value = '';
-    if (sf) sf.value = '';
-    if (so) so.value = 'recent';
-    filterAndSort();
-  });
-
-  filterAndSort();
+  q?.addEventListener('input', applyFilters);
+  sel?.addEventListener('change', applyFilters);
 })();
 </script>
-
-<style>
-/* arc-cover usando CSS var para imagem */
-.arc-cover {
-  height: 160px;
-  background:
-    linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.55)),
-    radial-gradient(70% 90% at 15% -10%, rgba(139,92,246,.22), transparent 60%),
-    radial-gradient(70% 90% at 120% 120%, rgba(34,227,168,.14), transparent 60%),
-    linear-gradient(135deg, #1f2640, #19202e);
-  border-bottom: 1px solid rgba(255,255,255,.06);
-  position: relative;
-  background-size: cover; background-position: center;
-}
-.arc-cover[style*="--cover-img"] {
-  background-image: var(--cover-img), 
-    radial-gradient(70% 90% at 15% -10%, rgba(139,92,246,.22), transparent 60%),
-    radial-gradient(70% 90% at 120% 120%, rgba(34,227,168,.14), transparent 60%),
-    linear-gradient(135deg, #1f2640, #19202e);
-}
-</style>

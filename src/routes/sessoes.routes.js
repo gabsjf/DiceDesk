@@ -1,10 +1,13 @@
 // src/routes/sessoes.routes.js
 import { Router } from "express";
-import { jogarSessaoGet } from "../controllers/sessao.controller.js";
+import { criarSessaoPost, apagarSessaoPost } from "../controllers/sessao.controller.js";
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
-// Tela principal de jogo da sessão
-router.get("/:id", jogarSessaoGet);
+// POST /campanhas/:id/sessoes
+router.post("/sessoes", criarSessaoPost);
+
+// POST /campanhas/:id/sessoes/:sid/apagar
+router.post("/sessoes/:sid/apagar", apagarSessaoPost);
 
 export default router;

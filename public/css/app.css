@@ -44,6 +44,11 @@ body::before {
   width: 260px;
   background: var(--bg);
   color: var(--muted);
+  transition: width 0.3s ease-in-out; /* Adicionado para transição suave */
+  flex-shrink: 0; /* Impede que a sidebar encolha */
+  overflow-x: hidden; /* Oculta o conteúdo que excede a largura */
+  padding-top: 2rem; /* Espaço superior */
+  padding-bottom: 2rem; /* Espaço inferior */
 }
 .nav-link {
   color: var(--muted);
@@ -254,12 +259,10 @@ body::before {
     border-radius: var(--radius);
     font-weight: 500;
     transition: all 0.2s ease; /* Transição para cor, background e padding */
-}
-
-.sidebar .nav-link:hover {
+    white-space: nowrap; /* Evita quebra.sidebar-closed .sidebar .nav-link:hover {
     background: linear-gradient(90deg, rgba(139, 92, 246, .12), transparent 70%);
     color: var(--primary);
-    padding-left: 1.25rem; /* Efeito de leve "empurrão" ao passar o mouse */
+    padding-left: 0; /* Remove o padding extra no hover para o estado fechado */
 }
 
 /* Ícones dentro dos links */
@@ -284,21 +287,26 @@ body::before {
 /* Estado Recolhido da Sidebar */
 .sidebar-closed .sidebar {
     width: 80px; /* Largura final quando recolhida */
+    padding-left: 0; /* Remove padding lateral */
+    padding-right: 0; /* Remove padding lateral */
 }
 
 .sidebar-closed .sidebar .nav-link {
     justify-content: center; /* Centraliza os ícones */
-    padding: 0.75rem 0.5rem; /* Ajusta o padding quando recolhido */
+    padding: 0.75rem 0; /* Remove padding lateral para centralizar melhor */
 }
 
 .sidebar-closed .sidebar .nav-link i {
     margin-right: 0; /* Remove a margem do ícone quando recolhido */
+    display: block; /* Garante que o ícone ocupe a largura total do link */
+    text-align: center;
 }
 
 .sidebar-closed .sidebar .nav-link .nav-text {
     opacity: 0;
     max-width: 0; /* Anima a largura do texto para zero */
     margin-left: 0; /* Remove a margem do texto */
+    display: none; /* Oculta completamente o texto */
 }
 
 /* Ocultar o texto do logo e mover o ícone */
@@ -309,27 +317,23 @@ body::before {
     overflow: hidden;
     white-space: nowrap;
     margin-left: 0.5rem; /* Espaço entre o ícone e o texto do logo */
+    display: inline-block; /* Garante que o max-width funcione */
 }
 
 .sidebar-closed .sidebar .brand-text {
     opacity: 0;
     max-width: 0;
     margin-left: 0;
+    display: none; /* Oculta completamente o texto do logo */
 }
 
 .sidebar-closed .sidebar .brand-icon {
     margin-right: 0 !important; /* Centraliza o ícone do logo */
+    display: block; /* Garante que o ícone fique centralizado */
+    text-align: center;
 }
 
 /* Topbar para ajustar quando a sidebar recolhe */
-.app-shell.sidebar-closed .main-content { /* Se você tiver uma classe 'main-content' no seu div que envolve o conteúdo principal */
-    margin-left: 80px;
-    transition: margin-left 0.3s ease-in-out;
-}
-.app-shell .main-content {
-    margin-left: 260px;
-    transition: margin-left 0.3s ease-in-out;
-}
 
 
 /* Toast UI editor no tema do app */
@@ -461,3 +465,80 @@ body::before {
 }
 
 
+.app-shell {
+  --sidebar-w: 260px;             /* aberta */
+  --sidebar-w-collapsed: 72px;    /* recolhida */
+}
+
+.app-shell.sidebar-closed {
+  --sidebar-w: var(--sidebar-w-collapsed);
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);     /* impede "apertar" no flex */
+  background: var(--bg);
+  color: var(--muted);
+  transition: width .3s ease-in-out;
+  overflow-x: hidden;
+  overflow-y: auto;               /* rolagem se a lista crescer */
+  height: 100vh;                  /* ocupa a altura toda */
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+/* Links e texto dentro da sidebar */
+.sidebar .nav-link { 
+  display: flex; align-items: center;
+  padding: 0.75rem 1rem;
+  margin-bottom: .25rem;
+  color: var(--muted);
+  border-radius: var(--radius);
+  font-weight: 500;
+  transition: all .2s ease;
+}
+.sidebar .nav-link:hover {
+  background: linear-gradient(90deg, rgba(139,92,246,.12), transparent 70%);
+  color: var(--primary);
+  padding-left: 1.25rem;
+}
+.sidebar .nav-link i { font-size: 1.25rem; }
+
+/* Texto colapsa suavemente quando a sidebar recolhe */
+.sidebar .nav-link .nav-text {
+  opacity: 1;
+  max-width: 100%;
+  transition: opacity .3s ease-in-out, max-width .3s ease-in-out;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-left: .75rem;
+}
+.app-shell.sidebar-closed .sidebar .nav-link {
+  justify-content: center;
+  padding: .75rem .5rem;
+}
+.app-shell.sidebar-closed .sidebar .nav-link .nav-text {
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
+}
+
+/* Logo/texto da marca */
+.sidebar .brand-text {
+  opacity: 1; max-width: 100px;
+  transition: opacity .3s ease-in-out, max-width .3s ease-in-out;
+  overflow: hidden; white-space: nowrap; margin-left: .5rem;
+}
+.app-shell.sidebar-closed .sidebar .brand-text {
+  opacity: 0; max-width: 0; margin-left: 0;
+}
+
+.topbar {
+  height: 64px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}

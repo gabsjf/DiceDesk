@@ -3,11 +3,23 @@ import { CampanhaModel } from "../models/campanha.model.js";
 
 /* ========= LISTA ========= */
 export function index(req, res) {
-  const campanhas = CampanhaModel.findAll();
+  const campanhas =
+    typeof CampanhaModel.findAll === "function"
+      ? CampanhaModel.findAll()
+      : typeof CampanhaModel.listar === "function"
+      ? CampanhaModel.listar()
+      : [];
+
+  const sistemas = [...new Set(
+    (campanhas || []).map(c => c?.sistema).filter(Boolean)
+  )].sort();
+
   res.render("campanhas/index", {
     layout: "_layout",
     titulo: "Campanhas",
-    campanhas
+    active: "campanhas",
+    campanhas,
+    sistemas
   });
 }
 
@@ -16,14 +28,15 @@ export function criarGet(req, res) {
   res.render("campanhas/criar", {
     layout: "_layout",
     titulo: "Criar campanha",
+    active: "campanhas",
     errors: null,
-    values: {}
+    campanha: {}
   });
 }
 
 export function criarPost(req, res) {
   const { nome, sistema, descricao } = req.body || {};
-  const values = { nome, sistema, descricao };
+  const campanha = { nome, sistema, descricao };
 
   const errors = {};
   if (!nome || !nome.trim()) errors.nome = "O nome é obrigatório.";
@@ -33,16 +46,14 @@ export function criarPost(req, res) {
     return res.status(400).render("campanhas/criar", {
       layout: "_layout",
       titulo: "Criar campanha",
+      active: "campanhas",
       errors,
-      values
+      campanha
     });
   }
 
   let capaUrl = null;
-  if (req.file) {
-    // se você usa upload de imagem de capa, o middleware multer coloca req.file
-    capaUrl = `/uploads/${req.file.filename}`;
-  }
+  if (req.file) capaUrl = `/uploads/${req.file.filename}`;
 
   const criada = CampanhaModel.create({
     nome: nome.trim(),
@@ -57,18 +68,15 @@ export function criarPost(req, res) {
 /* ========= DETALHES ========= */
 export function detalhes(req, res) {
   const { id } = req.params;
-  const campanha = CampanhaModel.findById(id); // <-- aqui trocamos para findById
+  const campanha = CampanhaModel.findById(id);
+  if (!campanha) return res.status(404).send("Campanha não encontrada.");
 
-  if (!campanha) {
-    return res.status(404).send("Campanha não encontrada.");
-  }
-
-  // garante array para evitar crash na view
   campanha.sessoes = campanha.sessoes || [];
 
   res.render("campanhas/detalhes", {
     layout: "_layout",
     titulo: campanha.nome,
+    active: "campanhas",
     campanha,
     errors: null
   });
@@ -83,39 +91,40 @@ export function editarGet(req, res) {
   res.render("campanhas/editar", {
     layout: "_layout",
     titulo: `Editar — ${campanha.nome}`,
+    active: "campanhas",
     errors: null,
-    values: campanha
+    campanha
   });
 }
 
 export function editarPost(req, res) {
   const { id } = req.params;
-  const campanha = CampanhaModel.findById(id);
-  if (!campanha) return res.status(404).send("Campanha não encontrada.");
+  const campanhaOriginal = CampanhaModel.findById(id);
+  if (!campanhaOriginal) return res.status(404).send("Campanha não encontrada.");
 
   const { nome, sistema, descricao } = req.body || {};
   const errors = {};
   if (!nome || !nome.trim()) errors.nome = "O nome é obrigatório.";
   if (!sistema || !sistema.trim()) errors.sistema = "O sistema é obrigatório.";
 
+  const campanhaAtualizada = { ...campanhaOriginal, nome, sistema, descricao };
+
   if (Object.keys(errors).length) {
     return res.status(400).render("campanhas/editar", {
       layout: "_layout",
-      titulo: `Editar — ${campanha.nome}`,
+      titulo: `Editar — ${campanhaOriginal.nome}`,
+      active: "campanhas",
       errors,
-      values: { ...campanha, nome, sistema, descricao }
+      campanha: campanhaAtualizada
     });
   }
 
-  let patch = {
+  const patch = {
     nome: nome.trim(),
     sistema: sistema.trim(),
-    descricao: (descricao || "").trim()
+    descricao: (descricao || "").trim(),
+    ...(req.file ? { capaUrl: `/uploads/${req.file.filename}` } : {})
   };
-
-  if (req.file) {
-    patch.capaUrl = `/uploads/${req.file.filename}`;
-  }
 
   CampanhaModel.update(id, patch);
   return res.redirect(`/campanhas/${id}`);
@@ -130,6 +139,7 @@ export function apagarGet(req, res) {
   res.render("campanhas/apagar", {
     layout: "_layout",
     titulo: `Apagar — ${campanha.nome}`,
+    active: "campanhas",
     campanha
   });
 }

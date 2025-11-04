@@ -1,6 +1,5 @@
-// src/routes/campanhas.routes.js
 import { Router } from "express";
-import csurf from "csurf";
+// Removida a importação de csurf
 import {
   index,
   criarGet,
@@ -13,40 +12,39 @@ import {
 } from "../controllers/campanha.controller.js";
 
 import { criarSessaoPost, apagarSessaoPost } from "../controllers/sessao.controller.js";
-import upload from "../middlewares/upload.js"; // multer single('imagem') configurado lá
+import upload from "../middlewares/upload.js"; 
 
 const router = Router();
-const csrfProtection = csurf({ cookie: false });
+// Removida a criação de csrfProtection
 
-/** Middleware que injeta token CSRF nas views dessa rota */
+/** Middleware que injeta variável vazia (para evitar erros na view) */
 function attachCsrf(req, res, next) {
-  res.locals.csrfToken = typeof req.csrfToken === "function" ? req.csrfToken() : "";
+  res.locals.csrfToken = "";
   next();
 }
 
 // Listagem e CRUD de campanhas
 router.get("/", index);
-router.get("/criar", csrfProtection, attachCsrf, criarGet);
-router.post("/criar", csrfProtection, attachCsrf, criarPost);
-router.get("/:id", csrfProtection, attachCsrf, detalhes);
-router.get("/:id/editar", csrfProtection, attachCsrf, editarGet);
-router.post("/:id/editar", csrfProtection, attachCsrf, editarPost);
-router.get("/:id/apagar", csrfProtection, attachCsrf, apagarGet);
-router.post("/:id/apagar", csrfProtection, attachCsrf, apagarPost);
+// Removido csrfProtection
+router.get("/criar", attachCsrf, criarGet);
+router.post("/criar", criarPost); 
+router.get("/:id", attachCsrf, detalhes); 
+router.get("/:id/editar", attachCsrf, editarGet);
+router.post("/:id/editar", editarPost); 
+router.get("/:id/apagar", attachCsrf, apagarGet);
+router.post("/:id/apagar", apagarPost); 
 
 // Sessões (criar / apagar) dentro da campanha
 router.post(
   "/:id/sessoes",
-  csrfProtection,
-  attachCsrf,
+  // csrfProtection REMOVIDO
   upload.single("imagem"),
   criarSessaoPost
 );
 
 router.post(
   "/:id/sessoes/:sid/apagar",
-  csrfProtection,
-  attachCsrf,
+  // csrfProtection REMOVIDO
   apagarSessaoPost
 );
 
