@@ -1,4 +1,3 @@
-// src/middlewares/upload.js
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -7,20 +6,25 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-// Vamos salvar em /public/uploads (já servido como estático pelo app)
-const uploadDir = path.resolve(__dirname, "../../public/uploads");
+const uploadDir = path.resolve(__dirname, "../../uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const ext  = path.extname(file.originalname || "").toLowerCase();
-    const base = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    cb(null, base + ext);
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const name = path.basename(file.originalname || "capa", ext).slice(0, 40).replace(/\W+/g, "-");
+    cb(null, `${name}-${Date.now()}${ext}`);
   }
 });
 
-const upload = multer({ storage });
+function fileFilter(_req, file, cb) {
+  const ok = ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.mimetype);
+  cb(ok ? null : new Error("Formato de imagem inválido"), ok);
+}
 
-// 🔑 Export default (combina com `import upload from ...`)
-export default upload;
+export const uploadImage = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});

@@ -1,5 +1,5 @@
+// src/routes/campanhas.routes.js
 import { Router } from "express";
-// Removida a importação de csurf
 import {
   index,
   criarGet,
@@ -10,42 +10,37 @@ import {
   editarGet,
   editarPost,
 } from "../controllers/campanha.controller.js";
-
 import { criarSessaoPost, apagarSessaoPost } from "../controllers/sessao.controller.js";
-import upload from "../middlewares/upload.js"; 
+import { uploadImage } from "../middlewares/upload.js"; // middleware de upload (capa/imagens)
 
 const router = Router();
-// Removida a criação de csrfProtection
 
-/** Middleware que injeta variável vazia (para evitar erros na view) */
-function attachCsrf(req, res, next) {
+/** Injeta variável para views que esperam csrfToken */
+function attachCsrf(_req, res, next) {
   res.locals.csrfToken = "";
   next();
 }
 
-// Listagem e CRUD de campanhas
+/* ===== Campanhas ===== */
 router.get("/", index);
-// Removido csrfProtection
+
 router.get("/criar", attachCsrf, criarGet);
-router.post("/criar", criarPost); 
-router.get("/:id", attachCsrf, detalhes); 
+// upload da capa da campanha: campo "capa"
+router.post("/criar", uploadImage.single("capa"), criarPost);
+
+router.get("/:id", attachCsrf, detalhes);
+
 router.get("/:id/editar", attachCsrf, editarGet);
-router.post("/:id/editar", editarPost); 
+// upload opcional de nova capa: campo "capa"
+router.post("/:id/editar", uploadImage.single("capa"), editarPost);
+
 router.get("/:id/apagar", attachCsrf, apagarGet);
-router.post("/:id/apagar", apagarPost); 
+router.post("/:id/apagar", apagarPost);
 
-// Sessões (criar / apagar) dentro da campanha
-router.post(
-  "/:id/sessoes",
-  // csrfProtection REMOVIDO
-  upload.single("imagem"),
-  criarSessaoPost
-);
+/* ===== Sessões dentro da campanha ===== */
+// upload opcional da imagem da sessão: campo "imagem"
+router.post("/:id/sessoes", uploadImage.single("imagem"), criarSessaoPost);
 
-router.post(
-  "/:id/sessoes/:sid/apagar",
-  // csrfProtection REMOVIDO
-  apagarSessaoPost
-);
+router.post("/:id/sessoes/:sid/apagar", apagarSessaoPost);
 
 export default router;

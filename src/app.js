@@ -7,18 +7,19 @@ import morgan from "morgan";
 import expressLayouts from "express-ejs-layouts";
 import { fileURLToPath } from "url";
 
+// rotas
 import dashboardRouter from "./routes/dashboard.routes.js";
 import campanhasRouter from "./routes/campanhas.routes.js";
-import sessoesRouter from "./routes/sessoes.routes.js";           // rotas aninhadas: /campanhas/:id/...
+import sessoesRouter from "./routes/sessoes.routes.js";             // rotas aninhadas: /campanhas/:id/...
 import sessoesPublicRouter from "./routes/sessoes.public.routes.js"; // rotas públicas: /sessoes/:sid ...
 import jogadoresRouter from "./routes/jogadores.routes.js";
 import sessoesPagesRouter from "./routes/sessoes.pages.routes.js";
 
-
+// caminhos base
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-// inicializa o app ANTES de qualquer app.use
+// inicializa o app
 const app = express();
 
 // logs
@@ -28,9 +29,9 @@ app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// estáticos
-app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
-app.use(express.static(path.resolve(__dirname, "../public")));
+// arquivos estáticos
+app.use("/uploads", express.static(path.resolve(__dirname, "../uploads"))); // imagens de upload
+app.use(express.static(path.resolve(__dirname, "../public")));              // CSS, JS e assets do app
 
 // views
 app.set("views", path.join(__dirname, "views"));
@@ -47,7 +48,7 @@ app.use(session({
   cookie: { sameSite: "lax" }
 }));
 
-// flash sempre definido
+// flash messages globais
 app.use((req, res, next) => {
   const f = req.session.flash || {};
   res.locals.flash = { success: null, info: null, warning: null, danger: null, ...f };
@@ -61,7 +62,8 @@ app.use("/dashboard", dashboardRouter);
 app.use("/campanhas", campanhasRouter);
 app.use("/jogadores", jogadoresRouter);
 app.use("/sessoes", sessoesPagesRouter);
-// rotas aninhadas de sessões: POST /campanhas/:id/sessoes etc
+
+// rotas aninhadas de sessões: POST /campanhas/:id/sessoes etc.
 app.use("/campanhas/:id", sessoesRouter);
 
 // rotas públicas da sessão: GET /sessoes/:sid e ações de combate

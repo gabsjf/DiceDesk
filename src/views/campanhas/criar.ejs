@@ -1,37 +1,53 @@
-<% function err(errors, f){ return errors && errors[f] ? errors[f].msg : null; } %>
+<form class="arc-card p-3" action="/campanhas/criar" method="post" enctype="multipart/form-data">
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label">Nome</label>
+      <input name="nome" class="form-control" value="<%= campanha?.nome || '' %>" required>
+      <% if (errors?.nome) { %><div class="text-danger small mt-1"><%= errors.nome %></div><% } %>
+    </div>
 
-<div class="row g-4">
-  <div class="col-12 col-lg-8">
-    <div class="arc-card p-4">
-      <h2 class="h5 mb-3">Nova campanha</h2>
+    <div class="col-md-6">
+      <label class="form-label">Sistema</label>
+      <input name="sistema" class="form-control" value="<%= campanha?.sistema || '' %>" required>
+      <% if (errors?.sistema) { %><div class="text-danger small mt-1"><%= errors.sistema %></div><% } %>
+    </div>
 
-      <form action="/campanhas/criar" method="post" novalidate>
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="col-md-6">
+      <label class="form-label">Capa da campanha (PNG, JPG, WEBP, até 5MB)</label>
+      <input type="file" name="capa" id="cmpCapaInput" accept="image/*" class="form-control">
+    </div>
 
-        <div class="mb-3">
-          <label class="form-label">Nome da campanha</label>
-          <input name="nome" class="form-control <%= err(errors,'nome') ? 'is-invalid' : '' %>"
-                 value="<%= (campanha && campanha.nome) || '' %>"/>
-          <% if (err(errors,'nome')) { %><div class="invalid-feedback"><%= err(errors,'nome') %></div><% } %>
+    <div class="col-12">
+      <label class="form-label">Descrição</label>
+      <textarea name="descricao" rows="4" class="form-control"><%= campanha?.descricao || '' %></textarea>
+    </div>
+
+    <div class="col-12">
+      <div id="capaPreviewWrap" class="mt-2" style="display:none;">
+        <div class="arc-card p-2">
+          <div class="arc-cover" id="capaPreview" style="height:180px; background-size:cover; background-position:center;"></div>
         </div>
+      </div>
+    </div>
 
-        <div class="mb-3">
-          <label class="form-label">Sistema</label>
-          <input name="sistema" class="form-control <%= err(errors,'sistema') ? 'is-invalid' : '' %>"
-                 value="<%= (campanha && campanha.sistema) || '' %>"/>
-          <% if (err(errors,'sistema')) { %><div class="invalid-feedback"><%= err(errors,'sistema') %></div><% } %>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Descrição</label>
-          <textarea name="descricao" rows="4" class="form-control"><%= (campanha && campanha.descricao) || '' %></textarea>
-        </div>
-
-        <div class="d-flex gap-2">
-          <button class="btn btn-primary"><i class="bi bi-check2 me-1"></i> Criar</button>
-          <a class="btn btn-outline-secondary" href="/campanhas"><i class="bi bi-arrow-left me-1"></i> Voltar</a>
-        </div>
-      </form>
+    <div class="col-12 d-flex gap-2">
+      <a href="/campanhas" class="btn btn-ring">Cancelar</a>
+      <button class="btn btn-primary">Salvar</button>
     </div>
   </div>
-</div>
+</form>
+
+<script>
+  (function(){
+    const input = document.getElementById('cmpCapaInput');
+    const wrap  = document.getElementById('capaPreviewWrap');
+    const box   = document.getElementById('capaPreview');
+    input?.addEventListener('change', () => {
+      const f = input.files?.[0];
+      if (!f) { wrap.style.display = 'none'; return; }
+      const url = URL.createObjectURL(f);
+      box.style.backgroundImage = `url("${url}")`;
+      wrap.style.display = 'block';
+    });
+  })();
+</script>
