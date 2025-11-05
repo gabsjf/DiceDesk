@@ -1,4 +1,5 @@
 // src/app.js
+
 import express from "express";
 import path from "path";
 import cookieParser from "cookie-parser";
@@ -7,48 +8,53 @@ import morgan from "morgan";
 import expressLayouts from "express-ejs-layouts";
 import { fileURLToPath } from "url";
 
-// rotas
+// Rotas de páginas/recursos
 import dashboardRouter from "./routes/dashboard.routes.js";
 import campanhasRouter from "./routes/campanhas.routes.js";
-import sessoesRouter from "./routes/sessoes.routes.js";             // rotas aninhadas: /campanhas/:id/...
-import sessoesPublicRouter from "./routes/sessoes.public.routes.js"; // rotas públicas: /sessoes/:sid ...
+import sessoesRouter from "./routes/sessoes.routes.js";
+import sessoesPublicRouter from "./routes/sessoes.public.routes.js";
 import jogadoresRouter from "./routes/jogadores.routes.js";
 import sessoesPagesRouter from "./routes/sessoes.pages.routes.js";
 
-// caminhos base
+// Autenticação
+import authRoutes from "./routes/auth.routes.js";
+import { authMiddleware, checkAuthStatus } from "./middlewares/auth.middleware.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-// inicializa o app
 const app = express();
 
-// logs
+// Logs
 app.use(morgan("dev"));
 
-// parsers de body
+// Body parsers
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// arquivos estáticos
-app.use("/uploads", express.static(path.resolve(__dirname, "../uploads"))); // imagens de upload
-app.use(express.static(path.resolve(__dirname, "../public")));              // CSS, JS e assets do app
+// Estáticos
+app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
+app.use(express.static(path.resolve(__dirname, "../public")));
 
-// views
+// Views
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
 app.use(expressLayouts);
 app.set("layout", "_layout");
 
-// sessão e cookies
+// Sessão e cookies
 app.use(cookieParser());
 app.use(session({
-  secret: "troque-este-segredo",
+  secret: process.env.SESSION_SECRET || "troque-este-segredo",
   resave: false,
   saveUninitialized: false,
   cookie: { sameSite: "lax" }
 }));
 
-// flash messages globais
+// Status de auth em res.locals
+app.use(checkAuthStatus);
+
+// Flash sempre definido
 app.use((req, res, next) => {
   const f = req.session.flash || {};
   res.locals.flash = { success: null, info: null, warning: null, danger: null, ...f };
@@ -56,23 +62,51 @@ app.use((req, res, next) => {
   next();
 });
 
-// rotas principais
+// Config pública do Firebase para as views
+app.use((req, res, next) => {
+  // projectId pode vir do JSON privado ou do .env
+  let projectId = process.env.FIREBASE_PROJECT_ID || "";
+  try {
+    const creds = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
+    if (creds && creds.project_id) projectId = creds.project_id;
+  } catch {}
+
+  const cfg = {
+    apiKey: process.env.FIREBASE_API_KEY || "",
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : ""),
+    projectId: projectId || "",
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : ""),
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
+    appId: process.env.FIREBASE_APP_ID || "",
+  };
+
+  res.locals.firebasePublic = cfg;                 // nome usado nas views
+  res.locals.FIREBASE_CONFIG_PUBLIC = cfg;         // compat se alguma view esperar esse nome
+  next();
+});
+
+/* ===================== ROTAS ===================== */
+
+// Rotas públicas de autenticação
+app.use("/", authRoutes);
+
+// Raiz
 app.get("/", (req, res) => res.redirect("/dashboard"));
-app.use("/dashboard", dashboardRouter);
-app.use("/campanhas", campanhasRouter);
-app.use("/jogadores", jogadoresRouter);
-app.use("/sessoes", sessoesPagesRouter);
 
-// rotas aninhadas de sessões: POST /campanhas/:id/sessoes etc.
-app.use("/campanhas/:id", sessoesRouter);
+// Rotas protegidas
+app.use("/dashboard", authMiddleware, dashboardRouter);
+app.use("/campanhas", authMiddleware, campanhasRouter);
+app.use("/jogadores", authMiddleware, jogadoresRouter);
+app.use("/sessoes", authMiddleware, sessoesPagesRouter);
+app.use("/campanhas/:id", authMiddleware, sessoesRouter);
 
-// rotas públicas da sessão: GET /sessoes/:sid e ações de combate
+// Rotas públicas da sessão, se existirem
 app.use("/", sessoesPublicRouter);
 
 // 404
 app.use((req, res) => res.status(404).send("Página não encontrada"));
 
-// erro genérico
+// Erro genérico
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).send("Erro interno do servidor.");
