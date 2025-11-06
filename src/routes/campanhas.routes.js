@@ -10,7 +10,8 @@ import {
   editarPost,
 } from "../controllers/campanha.controller.js";
 import { criarSessaoPost, apagarSessaoPost } from "../controllers/sessao.controller.js";
-import { uploadImage } from "../middlewares/upload.js"; 
+// 🚨 CORREÇÃO: Importação padrão (default) para o Multer
+import uploadImage from "../middlewares/upload.js"; 
 import { extractUserId } from "../middlewares/auth.middleware.js"; // Importa o extrator
 
 const router = Router();
@@ -47,7 +48,7 @@ router.post("/:id/apagar", extractUserId, apagarPost);
 /* ===== 4. Rotas de Sessões (Ações Aninhadas) ===== */
 
 // Criar Sessão (POST /campanhas/:id/sessoes)
-// 🚨 CRUCIAL: extractUserId deve vir antes do uploadImage (Multer)
+// CRUCIAL: extractUserId deve vir antes do uploadImage (Multer)
 router.post("/:id/sessoes", extractUserId, uploadImage.single("imagem"), criarSessaoPost);
 
 // Apagar Sessão (POST /campanhas/:id/sessoes/:sid/apagar)
