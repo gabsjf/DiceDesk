@@ -1,67 +1,86 @@
-// src/config/firebase.js (AJUSTE NA EXPORTAÇÃO FINAL)
+// src/config/firebase.js
+import 'dotenv/config';
+import { initializeApp, cert, getApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
+import fs from 'fs';
 
-import { initializeApp, cert, getApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
-import * as fs from 'fs';
-
-// Variável global fornecida pelo Canvas/ambiente
-// Esta variável é necessária para a construção dos caminhos do Firestore (segurança)
+// Variável global do Canvas/ambiente (caso exista)
 export const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-
+// ==============================
+// 1) Carrega Service Account
+// ==============================
 let serviceAccount = null;
 
-// --- ESTRATÉGIA DE CARREGAMENTO DE CREDENCIAIS ---
-// Tenta carregar o JSON do service account em ordem de prioridade:
-// 1. Variável de ambiente FIREBASE_CREDENTIALS (usado no Render/GCP)
-// 2. Caminho do arquivo SERVICE_ACCOUNT_PATH (usado localmente)
-
 if (process.env.FIREBASE_CREDENTIALS) {
-    // 1. Prioridade: Credenciais como string JSON completa (ambiente de nuvem)
-    try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
-    } catch (e) {
-        console.error("ERRO CRÍTICO: FIREBASE_CREDENTIALS não é um JSON válido.", e);
-    }
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+  } catch (e) {
+    console.error('ERRO CRÍTICO: FIREBASE_CREDENTIALS não é JSON válido.', e);
+  }
 } else if (process.env.SERVICE_ACCOUNT_PATH) {
-    // 2. Alternativa: Credenciais via caminho do arquivo (ambiente local)
-    try {
-        const fileContent = fs.readFileSync(process.env.SERVICE_ACCOUNT_PATH, 'utf8');
-        serviceAccount = JSON.parse(fileContent);
-    } catch (e) {
-        console.error("ERRO CRÍTICO: Falha ao ler arquivo de Service Account.", e);
-        serviceAccount = null;
-    }
+  try {
+    const fileContent = fs.readFileSync(process.env.SERVICE_ACCOUNT_PATH, 'utf8');
+    serviceAccount = JSON.parse(fileContent);
+  } catch (e) {
+    console.error('ERRO CRÍTICO: Falha ao ler SERVICE_ACCOUNT_PATH.', e);
+  }
 }
-
 
 if (!serviceAccount || !serviceAccount.project_id) {
-    // Se a Service Account não puder ser carregada, a aplicação não pode iniciar
-    console.error("ERRO FATAL: O objeto de Service Account é inválido ou ausente. Verifique FIREBASE_CREDENTIALS ou SERVICE_ACCOUNT_PATH.");
-    process.exit(1); 
+  console.error('ERRO FATAL: Service Account inválida/ausente. Configure FIREBASE_CREDENTIALS ou SERVICE_ACCOUNT_PATH.');
+  process.exit(1);
 }
 
-// Extrai o Project ID do JSON secreto
-const projectId = serviceAccount.project_id; 
+const projectId = serviceAccount.project_id;
 
+// ==============================
+// 2) Resolve o bucket de Storage
+// ==============================
+// Dê preferência a FIREBASE_STORAGE_BUCKET;
+// se não existir, caia no padrão do Firebase (PROJECT_ID.appspot.com)
+const storageBucket =
+  process.env.FIREBASE_STORAGE_BUCKET && process.env.FIREBASE_STORAGE_BUCKET.trim()
+    ? process.env.FIREBASE_STORAGE_BUCKET.trim()
+    : `${projectId}.appspot.com`;
+
+// Dica importante:
+// - O **ID do bucket** geralmente é PROJECT_ID.appspot.com.
+// - Domínios como *.firebasestorage.app são para servir arquivos, não para nome do bucket.
+// - Se der 404 "bucket does not exist", verifique no Console do Firebase > Storage se o bucket foi inicializado
+//   e copie exatamente o **ID do bucket** mostrado lá.
+
+// ==============================
+// 3) Inicializa o Admin App (singleton)
+// ==============================
 let adminApp;
-
 try {
-  // Tenta obter o app existente
   adminApp = getApp();
-} catch (e) {
-  // Inicializa se não existir
+} catch {
   adminApp = initializeApp({
     credential: cert(serviceAccount),
-    projectId: projectId, 
-    // Garante que o storage também use o ID
-    storageBucket: `${projectId}.appspot.com`
+    projectId,
+    storageBucket, // <- usa o bucket resolvido
   });
+
+  // Log leve para diagnosticar em dev
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[Firebase Admin] inicializado', {
+      projectId,
+      storageBucket,
+    });
+  }
 }
 
+// ==============================
+// 4) Exports (Firestore/Auth/Storage)
+// ==============================
 const db = getFirestore(adminApp);
-const adminAuth = getAuth(adminApp); 
+const adminAuth = getAuth(adminApp);
+const storage = getStorage(adminApp);
+const bucket = storage.bucket(); // já aponta para `storageBucket`
 
-// 🚨 CORREÇÃO: Adicionando 'adminApp' à lista de exports
-export { db, adminAuth, adminApp };
+export { db, adminAuth, storage, bucket, adminApp, projectId };
+export default adminApp;

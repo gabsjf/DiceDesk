@@ -1,30 +1,28 @@
 // src/middlewares/upload.js
-
-// O Multer deve ser configurado para armazenar em memória (buffer)
-// para que o Firebase Storage possa acessá-lo.
 import multer from "multer";
-import { processUpload } from "./storage.middleware.js"; // Importa a função de upload para o Firebase
+import { processUpload } from "./storage.middleware.js";
 
-// 1. Configura o Multer para usar a memória (Memory Storage)
-// Isso é crucial para ambientes de nuvem/serverless.
+// 1) Multer em memória
 const storage = multer.memoryStorage();
 
-// 2. Filtra somente imagens comuns
+// 2) Filtro: só imagens
 const fileFilter = (req, file, cb) => {
-    if (/^image\/(png|jpe?g|webp|gif)$/i.test(file.mimetype)) {
-        return cb(null, true);
-    }
-    cb(new Error("Tipo de arquivo não suportado. Use PNG, JPG, WEBP ou GIF."));
+  if (/^image\/(png|jpe?g|webp|gif)$/i.test(file.mimetype)) return cb(null, true);
+  cb(new Error("Tipo de arquivo não suportado. Use PNG, JPG, WEBP ou GIF."));
 };
 
-// 3. Limites (ex.: 5MB)
+// 3) Limite: 5MB
 const limits = { fileSize: 5 * 1024 * 1024 };
 
-// 4. Cria a instância do Multer (upload)
+// 4) Instância padrão (você pode usar direto se quiser)
 const upload = multer({ storage, fileFilter, limits });
 
-// Export default: Instância do Multer para uso nas rotas (Ex: upload.single('capa'))
-export default upload;
+// 5) Helper para criar a cadeia completa por campo
+//    Ex.: router.post('/criar', uploadImageChain('capa', 'capas'), controller)
+function uploadImageChain(fieldName, folder = "uploads") {
+  // retorna um array de middlewares na ordem correta
+  return [upload.single(fieldName), processUpload(folder)];
+}
 
-// Exporta o processUpload separadamente para ser chamado logo após o Multer na rota
-export { processUpload };
+export default upload;
+export { processUpload, uploadImageChain };
