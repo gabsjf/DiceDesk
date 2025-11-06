@@ -1,94 +1,95 @@
 <%
 // proteções contra undefined vindas do controller
 const _campanhas = Array.isArray(campanhas) ? campanhas : [];
-const _sistemas  = Array.isArray(sistemas)  ? sistemas  : [];
+const _sistemas  = Array.isArray(sistemas)  ? sistemas  : [];
 %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="m-0" style="font-family:'Cinzel',serif; letter-spacing:.5px;">
-    <i class="bi bi-book me-2"></i> Campanhas
-  </h2>
-  <div class="d-flex gap-2">
-    <a href="/campanhas/criar" class="btn btn-primary btn-ring">
-      <i class="bi bi-plus-lg me-1"></i> Nova campanha
-    </a>
-  </div>
+  <h2 class="m-0" style="font-family:'Cinzel',serif; letter-spacing:.5px;">
+    <i class="bi bi-book me-2"></i> Campanhas
+  </h2>
+  <div class="d-flex gap-2">
+    <a href="/campanhas/criar" class="btn btn-primary btn-ring">
+      <i class="bi bi-plus-lg me-1"></i> Nova campanha
+    </a>
+  </div>
 </div>
 
 <div class="arc-card p-3 mb-3">
-  <div class="row g-3">
-    <div class="col-md-6 col-lg-4">
-      <label class="form-label">Buscar</label>
-      <input id="cmpFilterSearch" type="search" class="form-control" placeholder="nome ou descrição">
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <label class="form-label">Sistema</label>
-      <select id="cmpFilterSistema" class="form-select">
-        <option value="">Todos os sistemas</option>
-        <% _sistemas.forEach(s => { %>
-          <option value="<%= s %>"><%= s %></option>
-        <% }) %>
-      </select>
-    </div>
-  </div>
+  <div class="row g-3">
+    <div class="col-md-6 col-lg-4">
+      <label class="form-label">Buscar</label>
+      <input id="cmpFilterSearch" type="search" class="form-control" placeholder="nome ou descrição">
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <label class="form-label">Sistema</label>
+      <select id="cmpFilterSistema" class="form-select">
+        <option value="">Todos os sistemas</option>
+        <% _sistemas.forEach(s => { %>
+          <option value="<%= s %>"><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+  </div>
 </div>
 
 <% if (_campanhas.length === 0) { %>
-  <div class="empty">
-    <i class="bi bi-collection fs-1 d-block mb-2"></i>
-    <p class="mb-0">Nenhuma campanha encontrada.</p>
-  </div>
+  <div class="empty">
+    <i class="bi bi-collection fs-1 d-block mb-2"></i>
+    <p class="mb-0">Nenhuma campanha encontrada.</p>
+  </div>
 <% } else { %>
-  <div id="cmpGrid" class="row g-3">
-    <% _campanhas.forEach(c => { %>
-      <div class="col-12 col-md-6 col-xl-4 cmp-card" data-sistema="<%= c.sistema || '' %>" data-name="<%= (c.nome || '') + ' ' + (c.descricao || '') %>">
-        <div class="arc-card h-100 campaign-card">
-          <div class="arc-cover" <% if (c.capaUrl) { %>
-               style="background-image:url('<%= c.capaUrl %>'); background-size:cover; background-position:center;"
-             <% } %>></div>
-          <div class="arc-body">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-              <span class="arc-badge"><i class="bi bi-dice-5"></i> <%= c.sistema || '—' %></span>
-            </div>
-            <h3 class="arc-title"><%= c.nome %></h3>
-            <p class="text-muted small mb-3"><%= c.descricao || 'Sem descrição.' %></p>
-            <div class="mt-auto d-flex gap-2">
-              <a class="btn btn-primary flex-fill" href="/campanhas/<%= c.id %>">
-                <i class="bi bi-play-fill me-1"></i> Entrar
-              </a>
-              <a class="btn btn-ring" href="/campanhas/editar/<%= c.id %>" title="Editar">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <form method="post" action="/campanhas/<%= c.id %>/apagar">
-                <button class="btn btn-danger btn-ring" title="Apagar"><i class="bi bi-trash"></i></button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    <% }) %>
-  </div>
+  <div id="cmpGrid" class="row g-3">
+    <% _campanhas.forEach(c => { %>
+      <div class="col-12 col-md-6 col-xl-4 cmp-card" data-sistema="<%= c.sistema || '' %>" data-name="<%= (c.nome || '') + ' ' + (c.descricao || '') %>">
+        <div class="arc-card h-100 campaign-card">
+          <div class="arc-cover" <% if (c.capaUrl) { %>
+               style="background-image:url('<%= c.capaUrl %>'); background-size:cover; background-position:center;"
+             <% } %>></div>
+          <div class="arc-body">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="arc-badge"><i class="bi bi-dice-5"></i> <%= c.sistema || '—' %></span>
+            </div>
+            <h3 class="arc-title"><%= c.nome %></h3>
+            <p class="text-muted small mb-3"><%= c.descricao || 'Sem descrição.' %></p>
+            <div class="mt-auto d-flex gap-2">
+              <a class="btn btn-primary flex-fill" href="/campanhas/<%= c.id %>">
+                <i class="bi bi-play-fill me-1"></i> Entrar
+              </a>
+                <!-- 🚨 CORREÇÃO DE ROTEAMENTO AQUI -->
+              <a class="btn btn-ring" href="/campanhas/<%= c.id %>/editar" title="Editar">
+  <i class="bi bi-pencil"></i>
+</a>
+<a class="btn btn-danger btn-ring" href="/campanhas/<%= c.id %>/apagar" title="Apagar">
+  <i class="bi bi-trash"></i>
+</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
 <% } %>
 
 <script>
 (function(){
-  const q = document.getElementById('cmpFilterSearch');
-  const sel = document.getElementById('cmpFilterSistema');
-  const cards = Array.from(document.querySelectorAll('.cmp-card'));
+  const q = document.getElementById('cmpFilterSearch');
+  const sel = document.getElementById('cmpFilterSistema');
+  const cards = Array.from(document.querySelectorAll('.cmp-card'));
 
-  function applyFilters(){
-    const term = (q?.value || '').toLowerCase().trim();
-    const sistema = sel?.value || '';
-    cards.forEach(el => {
-      const sys = el.getAttribute('data-sistema') || '';
-      const name = (el.getAttribute('data-name') || '').toLowerCase();
-      const okSys = !sistema || sys === sistema;
-      const okTerm = !term || name.includes(term);
-      el.style.display = okSys && okTerm ? '' : 'none';
-    });
-  }
+  function applyFilters(){
+    const term = (q?.value || '').toLowerCase().trim();
+    const sistema = sel?.value || '';
+    cards.forEach(el => {
+      const sys = el.getAttribute('data-sistema') || '';
+      const name = (el.getAttribute('data-name') || '').toLowerCase();
+      const okSys = !sistema || sys === sistema;
+      const okTerm = !term || name.includes(term);
+      el.style.display = okSys && okTerm ? '' : 'none';
+    });
+  }
 
-  q?.addEventListener('input', applyFilters);
-  sel?.addEventListener('change', applyFilters);
+  q?.addEventListener('input', applyFilters);
+  sel?.addEventListener('change', applyFilters);
 })();
 </script>

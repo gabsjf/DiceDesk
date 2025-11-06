@@ -1,3 +1,4 @@
+// src/routes/campanhas.routes.js
 import { Router } from "express";
 import {
   index,
@@ -10,59 +11,37 @@ import {
   editarPost,
 } from "../controllers/campanha.controller.js";
 import { criarSessaoPost, apagarSessaoPost } from "../controllers/sessao.controller.js";
-import { uploadImage } from "../middlewares/upload.js"; // middleware de upload (capa/imagens)
+import upload from "../middlewares/upload.js";
 
 const router = Router();
 
-/**
- * Middleware para injetar o userId na requisição.
- * O userId deve ser injetado previamente pelo authMiddleware em req.user.uid.
- */
-function extractUserId(req, res, next) {
-  // O ID do usuário (uid) é esperado do Firebase Admin SDK
-  // Nota: A propriedade pode ser 'uid' ou 'sub' dependendo de como você configura req.user no auth.middleware.
-  const userId = req.user?.uid || req.user?.sub; 
-  
-  if (!userId) {
-    // Se o middleware de auth falhou em injetar, deve haver um erro, 
-    // mas por segurança, redireciona ou retorna erro 403.
-    console.error("Erro: userId ausente na requisição protegida.");
-    return res.status(403).send("Acesso negado. Usuário não identificado.");
-  }
-  
-  // Injeta o userId para os controllers usarem
-  req.userId = userId;
-  next();
-}
-
-
-/** Injeta variável para views que esperam csrfToken */
-function attachCsrf(_req, res, next) {
+function attachCsrf(req, res, next) {
   res.locals.csrfToken = "";
   next();
 }
 
-/* ===== Campanhas ===== */
-// Aplica extractUserId a todas as rotas que precisam do banco de dados
-router.get("/", extractUserId, index);
+/* Lista e criação */
+router.get("/", index);
+router.get("/criar", attachCsrf, criarGet);
+router.post("/criar", upload.single("capa"), criarPost);
 
-router.get("/criar", attachCsrf, criarGet); // O userId será injetado nos controllers
-// upload da capa da campanha: campo "capa"
-router.post("/criar", extractUserId, uploadImage.single("capa"), criarPost);
+/* Aliases GET para rotas invertidas */
+router.get("/editar/:id", (req, res) => res.redirect(`/campanhas/${req.params.id}/editar`));
+router.get("/apagar/:id", (req, res) => res.redirect(`/campanhas/${req.params.id}/apagar`));
 
-router.get("/:id", extractUserId, attachCsrf, detalhes);
+/* Aliases POST para rotas invertidas, mantendo método e body via 307 */
+router.post("/editar/:id", (req, res) => res.redirect(307, `/campanhas/${req.params.id}/editar`));
+router.post("/apagar/:id", (req, res) => res.redirect(307, `/campanhas/${req.params.id}/apagar`));
 
-router.get("/:id/editar", extractUserId, attachCsrf, editarGet);
-// upload opcional de nova capa: campo "capa"
-router.post("/:id/editar", extractUserId, uploadImage.single("capa"), editarPost);
+/* Detalhes, editar e apagar no formato canônico */
+router.get("/:id", attachCsrf, detalhes);
+router.get("/:id/editar", attachCsrf, editarGet);
+router.post("/:id/editar", upload.single("capa"), editarPost);
+router.get("/:id/apagar", attachCsrf, apagarGet);
+router.post("/:id/apagar", apagarPost);
 
-router.get("/:id/apagar", extractUserId, attachCsrf, apagarGet);
-router.post("/:id/apagar", extractUserId, apagarPost);
-
-/* ===== Sessões dentro da campanha ===== */
-// upload opcional da imagem da sessão: campo "imagem"
-router.post("/:id/sessoes", extractUserId, uploadImage.single("imagem"), criarSessaoPost);
-
-router.post("/:id/sessoes/:sid/apagar", extractUserId, apagarSessaoPost);
+/* Sessões dentro da campanha */
+router.post("/:id/sessoes", upload.single("imagem"), criarSessaoPost);
+router.post("/:id/sessoes/:sid/apagar", apagarSessaoPost);
 
 export default router;

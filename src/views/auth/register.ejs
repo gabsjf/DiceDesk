@@ -1,26 +1,22 @@
-<!-- src/views/auth/register.ejs -->
-
 <div class="arc-card p-4 p-md-5 auth-container">
   <h1 class="text-center mb-4">
-    <i class="bi bi-dice-3 me-2 text-primary"></i> DiceDesk
+    <i class="bi bi-dice-3 me-2 text-primary"></i> Wyvern
   </h1>
   <h2 class="h4 text-center mb-4 page-title-display">Registrar Novo Mestre</h2>
 
   <form id="registerForm" class="mb-3" novalidate>
     <div class="mb-3">
       <label for="email" class="form-label">Email</label>
-      <input type="email" class="form-control" id="email" required>
+      <input type="email" class="form-control" id="email" required />
     </div>
-
     <div class="mb-3">
       <label for="password" class="form-label">Senha</label>
-      <input type="password" class="form-control" id="password" minlength="6" required>
+      <input type="password" class="form-control" id="password" minlength="6" required />
       <small class="form-text text-muted">Mínimo de 6 caracteres.</small>
     </div>
-
     <div class="mb-3">
       <label for="confirmPassword" class="form-label">Confirmar Senha</label>
-      <input type="password" class="form-control" id="confirmPassword" minlength="6" required>
+      <input type="password" class="form-control" id="confirmPassword" minlength="6" required />
     </div>
 
     <div id="authError" class="alert alert-danger d-none" role="alert"></div>
@@ -30,94 +26,7 @@
 
   <div class="text-center">
     <small class="text-muted">
-      Já tem uma conta?
-      <a href="/login" class="text-decoration-none">Fazer Login</a>
+      Já tem uma conta? <a href="/login" class="text-decoration-none">Fazer Login</a>
     </small>
   </div>
 </div>
-
-<!-- Carrega SDKs do Firebase somente nesta página -->
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
-
-<script>
-  // Config pública injetada pelo servidor
-  const firebaseConfig = <%- JSON.stringify(firebasePublic) %>;
-  console.log("firebaseConfig(register):", firebaseConfig);
-
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  const auth = firebase.auth();
-
-  const form = document.getElementById("registerForm");
-  const errorBox = document.getElementById("authError");
-  const submitBtn = document.getElementById("submitBtn");
-
-  function showError(msg) {
-    errorBox.textContent = msg;
-    errorBox.classList.remove("d-none");
-  }
-  function clearError() {
-    errorBox.classList.add("d-none");
-    errorBox.textContent = "";
-  }
-  function mapAuthError(err) {
-    const code = err?.code || "";
-    if (code.includes("email-already-in-use")) return "Este email já está em uso.";
-    if (code.includes("invalid-email")) return "Email inválido.";
-    if (code.includes("weak-password")) return "Senha fraca, use pelo menos 6 caracteres.";
-    return "Falha no cadastro. Tente novamente.";
-  }
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    clearError();
-    submitBtn.disabled = true;
-
-    const email = document.getElementById("email").value.trim();
-    const pass  = document.getElementById("password").value;
-    const pass2 = document.getElementById("confirmPassword").value;
-
-    if (pass !== pass2) {
-      showError("As senhas não conferem.");
-      submitBtn.disabled = false;
-      return;
-    }
-    if (pass.length < 6) {
-      showError("Senha fraca, use pelo menos 6 caracteres.");
-      submitBtn.disabled = false;
-      return;
-    }
-
-    try {
-      const cred = await auth.createUserWithEmailAndPassword(email, pass);
-      const idToken = await cred.user.getIdToken(true); // força token novo
-
-      const r = await fetch("/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken })
-      });
-
-      if (!r.ok) {
-        const txt = await r.text().catch(() => "Falha na autenticação");
-        showError(txt || "Falha na autenticação");
-        submitBtn.disabled = false;
-        return;
-      }
-
-      const data = await r.json().catch(() => null);
-      if (data && data.redirect) {
-        window.location.href = data.redirect;
-      } else {
-        showError("Resposta inesperada do servidor.");
-        submitBtn.disabled = false;
-      }
-    } catch (err) {
-      console.error(err);
-      showError(mapAuthError(err));
-      submitBtn.disabled = false;
-    }
-  });
-</script>

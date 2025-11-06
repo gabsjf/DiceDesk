@@ -1,9 +1,16 @@
+<!-- src/views/campanhas/apagar.ejs -->
 <div class="arc-card p-4">
   <h2 class="h5">Apagar campanha</h2>
   <p>Tem certeza que deseja apagar <strong><%= campanha.nome %></strong>?</p>
-  <form action="/campanhas/apagar/<%= campanha.id %>" method="post" class="d-flex gap-2">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-    <button class="btn btn-danger"><i class="bi bi-trash me-1"></i> Confirmar</button>
-    <a class="btn btn-outline-secondary" href="/campanhas"><i class="bi bi-x-lg me-1"></i> Cancelar</a>
+
+  <form action="/campanhas/<%= campanha.id %>/apagar" method="post" class="d-flex gap-2">
+    <% if (typeof csrfToken !== 'undefined') { %>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% } %>
+
+    <a class="btn btn-ring" href="/campanhas/<%= campanha.id %>">Cancelar</a>
+    <button class="btn btn-danger" type="submit">
+      <i class="bi bi-trash me-1"></i> Apagar definitivamente
+    </button>
   </form>
 </div>

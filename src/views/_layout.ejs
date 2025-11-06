@@ -11,20 +11,24 @@
   </title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+  <!-- Fontes -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700&family=Lora:wght@400;600&display=swap" rel="stylesheet">
 
+  <!-- Bootstrap / Ícones / TUI -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
   <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.min.css">
 
+  <!-- CSS do app -->
   <link rel="stylesheet" href="/css/app.css?v=2025-11-05">
 </head>
 
 <body>
   <div class="app-shell d-flex" id="appShell">
     
+    <!-- SIDEBAR -->
     <aside id="sidebar-menu" class="sidebar">
       <div class="sidebar-header px-3 py-2">
         <a href="/" class="app-logo text-decoration-none text-white fw-bold d-flex align-items-center">
@@ -56,8 +60,10 @@
       </ul>
     </aside>
 
+    <!-- CONTEÚDO PRINCIPAL -->
     <div class="main-content flex-fill d-flex flex-column min-vh-100">
       
+      <!-- TOPBAR -->
       <header class="topbar d-flex align-items-center justify-content-between px-4">
     <div class="d-flex align-items-center gap-3">
         <button class="btn btn-link px-0" id="sidebarToggle" title="Expandir/Colapsar Menu">
@@ -72,6 +78,7 @@
     <div class="d-flex align-items-center gap-3">
         <span class="text-muted small">v0.1</span>
         
+        <!-- AÇÃO: Botão de Logout -->
         <button id="logoutButton" class="btn btn-link px-2 text-danger" title="Sair da Conta">
             <i class="bi bi-box-arrow-right fs-4"></i>
         </button>
@@ -79,6 +86,7 @@
     </div>
 </header>
 
+      <!-- CONTEÚDO -->
       <main class="content container-fluid py-4 flex-grow-1">
         <% const hasFlash = (typeof flash !== 'undefined') && flash; %>
         <% if (hasFlash && (flash.success || flash.info || flash.warning || flash.danger)) { %>
@@ -113,24 +121,30 @@
         <%- body %>
       </main>
 
+      <!-- RODAPÉ -->
       <footer class="footer text-center small text-muted py-3">
         © <%= new Date().getFullYear() %> Wyvern
       </footer>
     </div>
   </div>
 
+  <!-- SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <!-- Cache-Buster para forçar o carregamento da versão limpa do app.js -->
   <script src="/js/app.js?v=4"></script> 
 
+  <!-- Scripts de Inicialização (Sidebar Toggle e Logout) -->
   <script>
     (function(){
       const appShell = document.getElementById('appShell');
       const toggle = document.getElementById('sidebarToggle');
       const logoutButton = document.getElementById('logoutButton');
+      
+      // Assume que 'window.firebaseAuth' contém a instância do Auth Client SDK
+      const authClient = window.firebaseAuth;
 
       // --- 1. Lógica do Sidebar ---
-      // Recupera o estado salvo
       try {
         const saved = localStorage.getItem('ui:sidebarClosed');
         if (saved === '1') appShell.classList.add('sidebar-closed');
@@ -154,7 +168,7 @@
             }
 
             try {
-                // Faz a requisição POST para a rota /logout no seu servidor
+                // 1. Faz a requisição POST para limpar o cookie no servidor Express
                 const response = await fetch('/logout', {
                     method: 'POST',
                     headers: {
@@ -163,14 +177,19 @@
                 });
 
                 if (response.ok) {
-                    // SE O BACKEND RETORNA SUCESSO, REDIRECIONA PARA A TELA DE LOGIN
+                    // 2. SUCESSO DO SERVIDOR: Força o sign out no CLIENTE (limpa o token local do navegador)
+                    if (authClient) {
+                        await authClient.signOut(); // 🚨 CORREÇÃO CRÍTICA
+                    }
+                    
+                    // 3. Redireciona
                     window.location.href = '/login'; 
                 } else {
                     console.error('Logout failed with status:', response.status);
                     alert('Erro ao tentar sair. Por favor, tente novamente. Status: ' + response.status);
                 }
             } catch (error) {
-                console.error('Erro de rede durante o logout:', error);
+                console.error('Erro de rede durante o logout ou falha no signout do cliente:', error);
                 alert('Não foi possível conectar ao servidor para fazer logout.');
             }
         });

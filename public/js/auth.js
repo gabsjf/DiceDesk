@@ -1,137 +1,123 @@
+// public/js/auth.js
 document.addEventListener('DOMContentLoaded', function () {
-    // Usa a variável global definida em auth_layout.ejs (assumindo que o Firebase Auth está inicializado lá)
-    const auth = window.firebaseAuth; 
-    
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const authErrorDiv = document.getElementById('authError');
+  const auth = window.firebaseAuth;
+  const firebase = window.firebase;
 
-    /**
-     * Exibe uma mensagem de erro na div de erro.
-     */
-    function displayError(message, errorElement) {
-        errorElement.textContent = message;
-        errorElement.classList.remove('d-none');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const authErrorDiv = document.getElementById('authError');
+
+  function showErr(msg) {
+    if (!authErrorDiv) return;
+    authErrorDiv.textContent = msg || 'Ocorreu um erro. Tente novamente.';
+    authErrorDiv.classList.remove('d-none');
+  }
+  function clearErr() {
+    if (!authErrorDiv) return;
+    authErrorDiv.classList.add('d-none');
+    authErrorDiv.textContent = '';
+  }
+  function mapFirebaseErr(error) {
+    const c = error?.code || '';
+    if (c.includes('user-not-found') || c.includes('wrong-password')) return 'Credenciais inválidas.';
+    if (c.includes('email-already-in-use')) return 'Este email já está em uso.';
+    if (c.includes('weak-password')) return 'Senha fraca, use pelo menos 6 caracteres.';
+    if (c.includes('invalid-email')) return 'Email inválido.';
+    if (c.includes('user-token-expired')) return 'Sua sessão expirou. Faça login novamente.';
+    return 'Falha na autenticação. Tente novamente.';
+  }
+
+  // Persistência 100% em memória
+  (async () => {
+    try {
+      if (auth && firebase?.auth) {
+        await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+      }
+    } catch (e) {
+      // não falha a UI por isso
     }
+  })();
 
-    /**
-     * Lida com erros específicos do Firebase.
-     */
-    function handleFirebaseError(error) {
-        switch (error.code) {
-            case 'auth/user-not-found':
-            case 'auth/wrong-password':
-                return 'Credenciais inválidas. Verifique seu email e senha.';
-            case 'auth/email-already-in-use':
-                return 'Este email já está em uso. Tente fazer login.';
-            case 'auth/weak-password':
-                return 'A senha deve ter pelo menos 6 caracteres.';
-            case 'auth/invalid-email':
-                return 'O formato do email é inválido.';
-            default:
-                console.error('Erro de autenticação do Firebase:', error);
-                return 'Ocorreu um erro desconhecido. Tente novamente.';
+  // ================= LOGIN =================
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErr();
+
+      if (!auth) { showErr('Falha ao inicializar o Firebase.'); return; }
+
+      const email = loginForm.email.value.trim();
+      const password = loginForm.password.value;
+
+      try {
+        const cred = await auth.signInWithEmailAndPassword(email, password);
+        const idToken = await cred.user.getIdToken(true); // token fresquinho
+
+        const r = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken })
+        });
+
+        const data = await r.json().catch(() => null);
+        if (!r.ok || !data?.redirect) {
+          showErr(data?.message || 'Falha ao estabelecer sessão com o servidor.');
+          // encerra o estado local pra não “prender” o token
+          try { await auth.signOut(); } catch {}
+          return;
         }
-    }
 
+        // Agora que o cookie httpOnly foi emitido, pode sair do cliente
+        try { await auth.signOut(); } catch {}
 
-    // =========================================================
-    // LÓGICA DE LOGIN
-    // =========================================================
+        window.location.href = data.redirect;
+      } catch (err) {
+        showErr(mapFirebaseErr(err));
+        try { await auth.signOut(); } catch {}
+      }
+    });
+  }
 
-    if (loginForm) {
-        loginForm.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const email = loginForm.email.value;
-            const password = loginForm.password.value;
-            authErrorDiv.classList.add('d-none'); // Limpa erros
+  // =============== REGISTRO ===============
+  if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErr();
 
-            if (!auth) {
-                displayError('Erro de inicialização do Firebase. Tente recarregar a página.', authErrorDiv);
-                return;
-            }
+      if (!auth) { showErr('Falha ao inicializar o Firebase.'); return; }
 
-            try {
-                // 1. Faz login no Firebase (cliente)
-                const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                const idToken = await userCredential.user.getIdToken();
+      const email = registerForm.email.value.trim();
+      const password = registerForm.password.value;
+      const confirm = registerForm.confirmPassword.value;
 
-                // 2. Envia o ID Token para o servidor Express para criar o cookie de sessão
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idToken })
-                });
+      if (password !== confirm) {
+        showErr('As senhas não conferem.');
+        return;
+      }
 
-                const data = await response.json();
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        const idToken = await cred.user.getIdToken(true);
 
-                // CORREÇÃO CRÍTICA: Verifica se a resposta HTTP é 200/204 E se o backend retornou o caminho de redirect.
-                if (response.ok && data.redirect) {
-                    // 3. Sucesso: Express criou o cookie de sessão, redireciona
-                    window.location.href = data.redirect;
-                } else {
-                    // 4. Falha na criação do cookie no servidor
-                    displayError(data.message || 'Falha ao estabelecer sessão com o servidor.', authErrorDiv);
-                }
-
-            } catch (error) {
-                // Erro de autenticação do Firebase (ex: senha errada)
-                displayError(handleFirebaseError(error), authErrorDiv);
-            }
+        const r = await fetch('/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken })
         });
-    }
 
+        const data = await r.json().catch(() => null);
+        if (!r.ok || !data?.redirect) {
+          showErr(data?.message || 'Falha ao iniciar sessão após o cadastro.');
+          try { await auth.signOut(); } catch {}
+          return;
+        }
 
-    // =========================================================
-    // LÓGICA DE CADASTRO
-    // =========================================================
-
-    if (registerForm) {
-        registerForm.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const email = registerForm.email.value;
-            const password = registerForm.password.value;
-            const confirmPassword = registerForm.confirmPassword.value;
-            authErrorDiv.classList.add('d-none'); // Limpa erros
-
-            if (password !== confirmPassword) {
-                displayError('As senhas não coincidem.', authErrorDiv);
-                return;
-            }
-
-            if (!auth) {
-                displayError('Erro de inicialização do Firebase. Tente recarregar a página.', authErrorDiv);
-                return;
-            }
-
-            try {
-                // 1. Cria usuário no Firebase (cliente)
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                const idToken = await userCredential.user.getIdToken();
-
-                // 2. Envia o ID Token para o servidor Express (rota /register, que chama o loginPost)
-                const response = await fetch('/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idToken })
-                });
-                
-                const data = await response.json();
-
-                // CORREÇÃO CRÍTICA: Verifica se a resposta HTTP é 200/204 E se o backend retornou o caminho de redirect.
-                if (response.ok && data.redirect) {
-                    // 3. Sucesso: Express criou o cookie de sessão, redireciona
-                    window.location.href = data.redirect;
-                } else {
-                    // 4. Falha na criação do cookie no servidor
-                    displayError(data.message || 'Falha ao iniciar sessão após o cadastro.', authErrorDiv);
-                }
-
-
-            } catch (error) {
-                // Erro de autenticação do Firebase (ex: email já existe)
-                displayError(handleFirebaseError(error), authErrorDiv);
-            }
-        });
-    }
+        try { await auth.signOut(); } catch {}
+        window.location.href = data.redirect;
+      } catch (err) {
+        showErr(mapFirebaseErr(err));
+        try { await auth.signOut(); } catch {}
+      }
+    });
+  }
 });

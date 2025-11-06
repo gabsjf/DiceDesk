@@ -2,6 +2,26 @@
   <div class="col-12">
     <div class="arc-card p-4 text-center">
       <h2 class="arc-title" style="font-size: 2rem;"><%= campanha.nome %></h2>
+      
+      <!-- INÍCIO DO BLOCO DE AÇÕES DA CAMPANHA (CORREÇÃO DE LINK) -->
+      <div class="d-flex gap-2 justify-content-center mt-3 mb-4">
+        <!-- Link de Edição (CORRIGIDO) -->
+        <a href="/campanhas/<%= campanha.id %>/editar" class="btn btn-ring btn-sm" title="Editar Campanha">
+          <i class="bi bi-pencil me-1"></i> Editar
+        </a>
+
+        <!-- Botão de Apagar (CORRIGIDO) -->
+        <form method="post" action="/campanhas/<%= campanha.id %>/apagar">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+            <button class="btn btn-danger btn-ring btn-sm" 
+                    title="Apagar Campanha"
+                    onclick="return confirm('ATENÇÃO! Apagar a campanha <%= campanha.nome %> e todas as sessões associadas?');">
+                <i class="bi bi-trash me-1"></i> Apagar
+            </button>
+        </form>
+      </div>
+      <!-- FIM DO BLOCO DE AÇÕES DA CAMPANHA -->
+
 
       <div class="arc-detail-cover my-4"
         <% if (campanha.capaUrl) { %>

@@ -1,36 +1,42 @@
-<form class="arc-card p-3" action="/campanhas/editar/<%= campanha.id %>" method="post" enctype="multipart/form-data">
+<!-- src/views/campanhas/editar.ejs -->
+<form class="arc-card p-3" action="/campanhas/<%= campanha.id %>/editar" method="post" enctype="multipart/form-data">
+  <% if (typeof csrfToken !== 'undefined') { %>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <% } %>
+
   <div class="row g-3">
     <div class="col-12">
       <label class="form-label">Nome</label>
-      <input name="nome" class="form-control" value="<%= campanha?.nome || '' %>" required>
-      <% if (errors?.nome) { %><div class="text-danger small mt-1"><%= errors.nome %></div><% } %>
+      <input name="nome" class="form-control" value="<%= (campanha && campanha.nome) ? campanha.nome : '' %>" required>
+      <% if (errors && errors.nome) { %><div class="text-danger small mt-1"><%= errors.nome %></div><% } %>
     </div>
 
     <div class="col-md-6">
       <label class="form-label">Sistema</label>
-      <input name="sistema" class="form-control" value="<%= campanha?.sistema || '' %>" required>
-      <% if (errors?.sistema) { %><div class="text-danger small mt-1"><%= errors.sistema %></div><% } %>
+      <input name="sistema" class="form-control" value="<%= (campanha && campanha.sistema) ? campanha.sistema : '' %>" required>
+      <% if (errors && errors.sistema) { %><div class="text-danger small mt-1"><%= errors.sistema %></div><% } %>
     </div>
 
     <div class="col-md-6">
-      <label class="form-label">Nova capa (opcional)</label>
+      <label class="form-label">Nova capa opcional</label>
       <input type="file" name="capa" id="cmpCapaInput" accept="image/*" class="form-control">
     </div>
 
     <div class="col-12">
       <label class="form-label">Descrição</label>
-      <textarea name="descricao" rows="4" class="form-control"><%= campanha?.descricao || '' %></textarea>
+      <textarea name="descricao" rows="4" class="form-control"><%= (campanha && campanha.descricao) ? campanha.descricao : '' %></textarea>
     </div>
 
     <div class="col-12">
-      <% if (campanha?.capaUrl) { %>
+      <% if (campanha && campanha.capaUrl) { %>
         <div class="text-muted small mb-1">Capa atual</div>
         <div class="arc-card mb-2">
           <div class="arc-cover" style="height:180px; background-image:url('<%= campanha.capaUrl %>'); background-size:cover; background-position:center;"></div>
         </div>
       <% } %>
+
       <div id="capaPreviewWrap" class="mt-2" style="display:none;">
-        <div class="text-muted small mb-1">Pré-visualização da nova capa</div>
+        <div class="text-muted small mb-1">Pré visualização da nova capa</div>
         <div class="arc-card">
           <div class="arc-cover" id="capaPreview" style="height:180px; background-size:cover; background-position:center;"></div>
         </div>
@@ -39,7 +45,7 @@
 
     <div class="col-12 d-flex gap-2">
       <a href="/campanhas/<%= campanha.id %>" class="btn btn-ring">Voltar</a>
-      <button class="btn btn-primary">Salvar alterações</button>
+      <button class="btn btn-primary" type="submit">Salvar alterações</button>
     </div>
   </div>
 </form>
@@ -49,12 +55,13 @@
     const input = document.getElementById('cmpCapaInput');
     const wrap  = document.getElementById('capaPreviewWrap');
     const box   = document.getElementById('capaPreview');
-    input?.addEventListener('change', () => {
-      const f = input.files?.[0];
-      if (!f) { wrap.style.display = 'none'; return; }
+    if (!input) return;
+    input.addEventListener('change', () => {
+      const f = input.files && input.files[0];
+      if (!f) { if (wrap) wrap.style.display = 'none'; return; }
       const url = URL.createObjectURL(f);
-      box.style.backgroundImage = `url("${url}")`;
-      wrap.style.display = 'block';
+      if (box) box.style.backgroundImage = 'url("' + url + '")';
+      if (wrap) wrap.style.display = 'block';
     });
   })();
 </script>

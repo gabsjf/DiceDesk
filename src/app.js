@@ -43,7 +43,7 @@ app.set("layout", "_layout");
 // Sessão e cookies
 app.use(cookieParser());
 app.use(session({
-  secret: process.env.SESSION_SECRET || "troque-este-segredo",
+  secret: process.env.SESSION_SECRET || "B&oe$Cf#T5f9Eia8SKDoGBqmer6TQNLMBQH6z9Y@",
   resave: false,
   saveUninitialized: false,
   cookie: { sameSite: "lax" }
