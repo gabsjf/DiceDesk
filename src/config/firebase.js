@@ -1,4 +1,4 @@
-// src/config/firebase.js
+// src/config/firebase.js (AJUSTE NA EXPORTAÇÃO FINAL)
 
 import { initializeApp, cert, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -63,5 +63,5 @@ try {
 const db = getFirestore(adminApp);
 const adminAuth = getAuth(adminApp); 
 
-// EXPORTAÇÃO AJUSTADA: Exporta o serviço de Autenticação como adminAuth
-export { db, adminAuth };
+// 🚨 CORREÇÃO: Adicionando 'adminApp' à lista de exports
+export { db, adminAuth, adminApp };
