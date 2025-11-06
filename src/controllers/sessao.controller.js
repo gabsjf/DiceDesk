@@ -105,7 +105,7 @@ export async function jogarSessaoGet(req, res) {
   }
   
   // 2. Renderiza a view (o caminho 'sessao/jogo' é o correto)
-  res.render("sessao/jogo", {
+  res.render("sessoes/jogar", {
     layout: "_layout", 
     titulo: `Jogando ${sessao.titulo}`,
     sessao: sessao,
