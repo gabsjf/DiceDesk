@@ -1,12 +1,13 @@
+// src/middlewares/storage.middleware.js
+
 import { getStorage } from "firebase-admin/storage";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
-// 🚨 Importa a instância de adminApp para garantir que o storage seja inicializado
+// Importa a instância de adminApp para garantir que o storage seja inicializado
 import { adminApp } from "../config/firebase.js"; 
 
 // Usa a instância de adminApp para obter o bucket.
-// O nome do bucket é configurado no firebase.js (PROJECT_ID.appspot.com)
 const bucket = getStorage(adminApp).bucket(); 
 
 // Configuração do Multer para armazenar em memória (buffer) antes do Storage
@@ -56,8 +57,8 @@ export function processUpload(req, res, next) {
 
   blobStream.on('error', (error) => {
     console.error("Erro ao fazer upload para o Firebase Storage:", error);
-    // Chama o next com erro, que Express tratará como 500
-    next(new Error("Falha ao salvar o arquivo.")); 
+    // Retorna o erro imediatamente ao Express
+    next(new Error(`Falha no upload: ${error.message}`)); 
   });
 
   blobStream.on('finish', async () => {
@@ -82,5 +83,4 @@ export function processUpload(req, res, next) {
   blobStream.end(file.buffer);
 }
 
-// Exporta o Multer configurado para uso nos roteadores
 export { uploadToStorage };
