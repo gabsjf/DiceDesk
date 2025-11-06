@@ -5,10 +5,11 @@ import { SessaoModel } from "../models/sessao.model.js";
  * Cria uma sessão dentro de uma campanha.
  */
 export async function criarSessaoPost(req, res) {
-  const userId = res.locals.userId || req.userId;
+  // Assume que req.userId é preenchido pelo middleware extractUserId
+  const userId = req.userId;
   const campanhaId = req.params.id;
 
-  // Aceita tanto 'nome' quanto 'titulo'
+  // Aceita tanto 'nome' quanto 'titulo' do formulário
   const { nome, titulo, descricao, data } = req.body || {};
   const finalTitulo = (titulo || nome || "").trim();
 
@@ -31,12 +32,11 @@ export async function criarSessaoPost(req, res) {
       descricao: descricao ? descricao.trim() : null,
       data: data || null,
       capaUrl: imagemUrl, // Usamos capaUrl para compatibilidade com o Model
+      campanhaId: campanhaId // Garante que o ID da campanha esteja no payload para o Model
     };
 
-    let novaSessao;
-
-    // Assumimos que SessaoModel.criar espera (userId, payload)
-    novaSessao = await SessaoModel.criar(userId, { campanhaId, ...payload });
+    // Chamada direta, sem verificação de argumentos, pois a estrutura é finalizada
+    await SessaoModel.criar(userId, payload);
     
     req.session.flash = { success: `Sessão "${finalTitulo}" criada com sucesso!` };
     return res.redirect(`/campanhas/${campanhaId}`);
@@ -52,7 +52,7 @@ export async function criarSessaoPost(req, res) {
  * Remove uma sessão de uma campanha.
  */
 export async function apagarSessaoPost(req, res) {
-  const userId = res.locals.userId || req.userId;
+  const userId = req.userId;
   const { id: campanhaId, sid: sessaoId } = req.params;
 
   if (!userId || !campanhaId || !sessaoId) {
@@ -61,7 +61,7 @@ export async function apagarSessaoPost(req, res) {
   }
 
   try {
-    // Chamamos o modelo com a assinatura que ele suporta (userId, sessaoId)
+    // Chamada direta: remove(userId, sessaoId)
     const ok = await SessaoModel.remover(userId, sessaoId);
     
     if (ok) {
@@ -79,7 +79,7 @@ export async function apagarSessaoPost(req, res) {
 
 
 /* =========================================================
- * Rotas de Jogo e Combate (Rotas Públicas)
+ * Rotas de Jogo e Combate (Protegidas/Simulação)
  * ========================================================= */
 
 /**
@@ -89,21 +89,24 @@ export async function apagarSessaoPost(req, res) {
 export async function jogarSessaoGet(req, res) {
   const sessionId = req.params.sid;
   
-  // 1. Busca a sessão (você precisa ter um findById que funcione sem userId)
-  // NOTA: Como a rota é pública, não temos o userId do mestre na requisição.
-  // Você precisará de um SessaoModel.findPublicById(sessionId)
-  
-  // Usamos um mock temporário para evitar falha no Model (se ele não tiver findById(sessionId))
-  // Se seu SessaoModel.findById espera userId, isto falhará.
-  const sessao = await SessaoModel.findById("userIdTemporarioPublico", sessionId); 
+  // 🚨 CORREÇÃO: Usa req.userId (garantido pelo middleware) para buscar
+  const userId = req.userId; 
 
-  if (!sessao) {
-    return res.status(404).send("Sessão de jogo não encontrada.");
+  if (!userId) {
+      return res.status(403).send("Acesso negado: ID do Mestre não encontrado.");
   }
   
-  // 2. Renderiza a view (o caminho 'sessao/jogo' é o correto, confirmado pela sua estrutura)
+  // 1. Busca a sessão (SessaoModel.findById agora existe e é buscado pelo userId)
+  const sessao = await SessaoModel.findById(userId, sessionId); 
+
+  if (!sessao || sessao.userId !== userId) {
+    // Garante que o documento exista E que pertença ao usuário logado
+    return res.status(404).send("Sessão de jogo não encontrada ou acesso negado.");
+  }
+  
+  // 2. Renderiza a view (o caminho 'sessao/jogo' é o correto)
   res.render("sessao/jogo", {
-    layout: "_layout", // Layout principal
+    layout: "_layout", 
     titulo: `Jogando ${sessao.titulo}`,
     sessao: sessao,
   });
