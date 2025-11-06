@@ -1,7 +1,5 @@
-// public/js/auth.js
-
 document.addEventListener('DOMContentLoaded', function () {
-    // 🚨 CORREÇÃO: Usa a variável global definida em auth_layout.ejs
+    // Usa a variável global definida em auth_layout.ejs (assumindo que o Firebase Auth está inicializado lá)
     const auth = window.firebaseAuth; 
     
     const loginForm = document.getElementById('loginForm');
@@ -67,7 +65,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const data = await response.json();
 
-                if (response.ok && data.success) {
+                // CORREÇÃO CRÍTICA: Verifica se a resposta HTTP é 200/204 E se o backend retornou o caminho de redirect.
+                if (response.ok && data.redirect) {
                     // 3. Sucesso: Express criou o cookie de sessão, redireciona
                     window.location.href = data.redirect;
                 } else {
@@ -110,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const idToken = await userCredential.user.getIdToken();
 
-                // 2. Envia o ID Token para o servidor Express (reutiliza a rota de login para sessão)
+                // 2. Envia o ID Token para o servidor Express (rota /register, que chama o loginPost)
                 const response = await fetch('/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -119,12 +118,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 const data = await response.json();
 
-                if (response.ok && data.success) {
+                // CORREÇÃO CRÍTICA: Verifica se a resposta HTTP é 200/204 E se o backend retornou o caminho de redirect.
+                if (response.ok && data.redirect) {
                     // 3. Sucesso: Express criou o cookie de sessão, redireciona
                     window.location.href = data.redirect;
                 } else {
-                    // 4. Falha na criação do cookie (raro)
-                    displayError(data.message || 'Cadastro realizado, mas falha ao iniciar sessão.', authErrorDiv);
+                    // 4. Falha na criação do cookie no servidor
+                    displayError(data.message || 'Falha ao iniciar sessão após o cadastro.', authErrorDiv);
                 }
 
 

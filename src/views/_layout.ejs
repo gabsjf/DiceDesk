@@ -11,24 +11,20 @@
   </title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Fontes -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Cinzel+Decorative:wght@700&family=Lora:wght@400;600&display=swap" rel="stylesheet">
 
-  <!-- Bootstrap / Ícones / TUI -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
   <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.min.css">
 
-  <!-- CSS do app -->
   <link rel="stylesheet" href="/css/app.css?v=2025-11-05">
 </head>
 
 <body>
   <div class="app-shell d-flex" id="appShell">
     
-    <!-- SIDEBAR -->
     <aside id="sidebar-menu" class="sidebar">
       <div class="sidebar-header px-3 py-2">
         <a href="/" class="app-logo text-decoration-none text-white fw-bold d-flex align-items-center">
@@ -60,28 +56,29 @@
       </ul>
     </aside>
 
-    <!-- CONTEÚDO PRINCIPAL -->
     <div class="main-content flex-fill d-flex flex-column min-vh-100">
       
-      <!-- TOPBAR -->
       <header class="topbar d-flex align-items-center justify-content-between px-4">
-        <div class="d-flex align-items-center gap-3">
-          <button class="btn btn-link px-0" id="sidebarToggle" title="Expandir/Colapsar Menu">
+    <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-link px-0" id="sidebarToggle" title="Expandir/Colapsar Menu">
             <i class="bi bi-list fs-3"></i>
-          </button>
-          <h1 class="m-0" style="font-family:'Cinzel',serif; letter-spacing:.5px;">
+        </button>
+        <h1 class="m-0" style="font-family:'Cinzel',serif; letter-spacing:.5px;">
             <%= (typeof titulo !== 'undefined' && titulo)
                 ? titulo
                 : ((typeof title !== 'undefined' && title) ? title : '') %>
-          </h1>
-        </div>
-        <div class="d-flex align-items-center gap-3">
-          <span class="text-muted small">v0.1</span>
-          <div class="avatar bg-primary-subtle text-primary fw-bold"></div>
-        </div>
-      </header>
+        </h1>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted small">v0.1</span>
+        
+        <button id="logoutButton" class="btn btn-link px-2 text-danger" title="Sair da Conta">
+            <i class="bi bi-box-arrow-right fs-4"></i>
+        </button>
+        <div class="avatar bg-primary-subtle text-primary fw-bold"></div>
+    </div>
+</header>
 
-      <!-- CONTEÚDO -->
       <main class="content container-fluid py-4 flex-grow-1">
         <% const hasFlash = (typeof flash !== 'undefined') && flash; %>
         <% if (hasFlash && (flash.success || flash.info || flash.warning || flash.danger)) { %>
@@ -116,24 +113,23 @@
         <%- body %>
       </main>
 
-      <!-- RODAPÉ -->
       <footer class="footer text-center small text-muted py-3">
         © <%= new Date().getFullYear() %> Wyvern
       </footer>
     </div>
   </div>
 
-  <!-- SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="/js/app.js?v=4"></script> 
 
-  <!-- Sidebar Toggle -->
   <script>
     (function(){
       const appShell = document.getElementById('appShell');
       const toggle = document.getElementById('sidebarToggle');
+      const logoutButton = document.getElementById('logoutButton');
 
+      // --- 1. Lógica do Sidebar ---
       // Recupera o estado salvo
       try {
         const saved = localStorage.getItem('ui:sidebarClosed');
@@ -149,6 +145,37 @@
           } catch {}
         });
       }
+
+      // --- 2. Lógica do Logout ---
+      if (logoutButton) {
+        logoutButton.addEventListener('click', async () => {
+            if (!confirm('Tem certeza que deseja encerrar a sessão?')) {
+                return;
+            }
+
+            try {
+                // Faz a requisição POST para a rota /logout no seu servidor
+                const response = await fetch('/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    // SE O BACKEND RETORNA SUCESSO, REDIRECIONA PARA A TELA DE LOGIN
+                    window.location.href = '/login'; 
+                } else {
+                    console.error('Logout failed with status:', response.status);
+                    alert('Erro ao tentar sair. Por favor, tente novamente. Status: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Erro de rede durante o logout:', error);
+                alert('Não foi possível conectar ao servidor para fazer logout.');
+            }
+        });
+      }
+
     })();
   </script>
 </body>

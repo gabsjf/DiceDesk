@@ -1,5 +1,3 @@
-// src/app.js
-
 import express from "express";
 import path from "path";
 import cookieParser from "cookie-parser";
@@ -87,8 +85,32 @@ app.use((req, res, next) => {
 
 /* ===================== ROTAS ===================== */
 
-// Rotas públicas de autenticação
+// Rotas públicas de autenticação (ex: /login, /register)
 app.use("/", authRoutes);
+
+// NOVO: Rota de Logout (POST)
+app.post("/logout", (req, res) => {
+  // Destroi a sessão do Express no servidor
+  req.session.destroy(err => {
+    if (err) {
+      console.error("Erro ao destruir a sessão:", err);
+      return res.status(500).json({ success: false, message: "Erro ao encerrar a sessão." });
+    }
+
+    // 1. Limpa o cookie da sessão do Express
+    // O nome padrão é 'connect.sid', mas depende da sua configuração
+    // Se você usa o nome padrão, essa linha deve funcionar.
+    res.clearCookie('connect.sid', { path: '/', sameSite: 'lax' }); 
+    res.clearCookie('session', { path: '/', sameSite: 'lax' });
+
+    // 2. Opcional: Limpa o cookie de sessão do Firebase, se estiver usando
+    // (Apenas se o seu middleware de auth estiver setando um cookie chamado '__session')
+    // res.clearCookie('__session', { path: '/', sameSite: 'lax' }); 
+
+    // Resposta de sucesso (o JavaScript do frontend fará o redirecionamento)
+    res.status(200).json({ success: true, message: "Sessão encerrada com sucesso." });
+  });
+});
 
 // Raiz
 app.get("/", (req, res) => res.redirect("/dashboard"));

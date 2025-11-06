@@ -1,9 +1,9 @@
-// src/controllers/sessao.controller.js
+
 import { v4 as uuid } from "uuid";
 import * as CampanhaModel from "../models/campanha.model.js";
 import { DND_CONDITIONS } from "../constants/conditions.js";
 
-/* Helpers de acesso ao model */
+
 async function getCampanhas() {
   if (typeof CampanhaModel.listar === "function") return CampanhaModel.listar();
   if (Array.isArray(CampanhaModel.campanhas)) return CampanhaModel.campanhas;
@@ -44,9 +44,7 @@ async function saveCampanha(campanha) {
   return campanha;
 }
 
-/* ===== AÇÕES DE SESSÃO (mantêm compatibilidade com campanhas.routes) ===== */
 
-// POST /campanhas/:id/sessoes
 export async function criarSessaoPost(req, res) {
   try {
     const campanhaId = req.params.id;
@@ -80,7 +78,6 @@ export async function criarSessaoPost(req, res) {
   }
 }
 
-// POST /campanhas/:id/sessoes/:sid/apagar
 export async function apagarSessaoPost(req, res) {
   try {
     const { id: campanhaId, sid: sessaoId } = req.params;

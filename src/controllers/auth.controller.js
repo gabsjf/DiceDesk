@@ -1,8 +1,6 @@
-// src/controllers/auth.controller.js
-
 import { adminAuth } from "../config/firebase.js";
 
-const MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 dias
+const MAX_AGE = 7 * 24 * 60 * 60 * 1000; 
 
 export const loginGet = (req, res) => {
   if (res.locals.isLoggedIn) {
@@ -21,7 +19,7 @@ export const loginPost = async (req, res) => {
   }
 
   try {
-    // opcional para diagnósticos: garante que o token é do seu projeto e está válido
+    
     await adminAuth.verifyIdToken(idToken, true);
 
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn: MAX_AGE });
@@ -30,14 +28,19 @@ export const loginPost = async (req, res) => {
     res.cookie("session", sessionCookie, {
       httpOnly: true,
       sameSite: "Lax",
-      secure: !isLocalhost, // true somente em HTTPS
+      secure: !isLocalhost, 
       maxAge: MAX_AGE,
     });
 
+    // Esta resposta está correta para o AJAX de login!
     return res.status(200).json({ redirect: "/dashboard" });
   } catch (error) {
     console.error("Erro ao criar cookie de sessão:", error);
-    return res.status(401).send("Falha na autenticação. Token inválido, expirado ou de outro projeto.");
+    // AQUI: Retorna JSON para o frontend tratar o erro
+    return res.status(401).json({ 
+        success: false, 
+        message: "Credenciais inválidas ou token expirado." 
+    });
   }
 };
 
@@ -51,8 +54,12 @@ export const registerGet = (req, res) => {
   });
 };
 
+// CORREÇÃO: O registerPost deve fazer a mesma coisa que o loginPost: criar o cookie
+// O registro do usuário em si (createUserWithEmailAndPassword) DEVE ser feito no frontend,
+// e o idToken resultante deve ser enviado para cá.
 export const registerPost = async (req, res) => {
-  // o cadastro do usuário é feito no cliente, aqui apenas criamos a sessão como no login
+  // Chamamos loginPost, pois o fluxo é idêntico: recebe o idToken, verifica e cria o cookie.
+  // A diferença é que a conta já foi criada pelo cliente Firebase antes de enviar o idToken.
   return loginPost(req, res);
 };
 
@@ -61,9 +68,15 @@ export const logout = async (req, res) => {
     const cookie = req.cookies?.session;
     if (cookie) {
       const decoded = await adminAuth.verifySessionCookie(cookie, true);
+      // Revogar o token de atualização é importante para segurança
       await adminAuth.revokeRefreshTokens(decoded.sub);
     }
   } catch {}
+  
+  // AÇÃO CRÍTICA: Limpar o cookie no navegador
   res.clearCookie("session");
-  return res.redirect("/login");
+  
+  // Como o frontend já está fazendo o redirecionamento após o POST 200 OK, 
+  // e esta função é para POST, devolvemos sucesso.
+  return res.status(200).json({ success: true });
 };

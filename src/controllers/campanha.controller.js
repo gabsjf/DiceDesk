@@ -1,4 +1,4 @@
-// src/controllers/campanha.controller.js
+
 import { CampanhaModel } from "../models/campanha.model.js";
 
 /* ========= LISTA ========= */
@@ -23,7 +23,7 @@ export function index(req, res) {
   });
 }
 
-/* ========= CRIAR ========= */
+
 export function criarGet(req, res) {
   res.render("campanhas/criar", {
     layout: "_layout",
@@ -65,7 +65,7 @@ export function criarPost(req, res) {
   return res.redirect(`/campanhas/${criada.id}`);
 }
 
-/* ========= DETALHES ========= */
+
 export function detalhes(req, res) {
   const { id } = req.params;
   const campanha = CampanhaModel.findById(id);
@@ -82,7 +82,7 @@ export function detalhes(req, res) {
   });
 }
 
-/* ========= EDITAR ========= */
+
 export function editarGet(req, res) {
   const { id } = req.params;
   const campanha = CampanhaModel.findById(id);
@@ -130,7 +130,7 @@ export function editarPost(req, res) {
   return res.redirect(`/campanhas/${id}`);
 }
 
-/* ========= APAGAR ========= */
+
 export function apagarGet(req, res) {
   const { id } = req.params;
   const campanha = CampanhaModel.findById(id);

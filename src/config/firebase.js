@@ -3,12 +3,33 @@
 import { initializeApp, cert, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
+import * as fs from 'fs'; // 👈 IMPORTANTE: Importar o módulo nativo 'fs'
 
-// Certifique-se de que a variável de ambiente FIREBASE_CREDENTIALS
-// contenha o JSON do service account.
-const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS || "{}");
+// 1. OBTÉM O CAMINHO DO ARQUIVO JSON
+const serviceAccountPath = process.env.SERVICE_ACCOUNT_PATH; 
 
-// Extrai o Project ID do JSON secreto
+let serviceAccount = {};
+
+try {
+    if (!serviceAccountPath) {
+        throw new Error("Variável SERVICE_ACCOUNT_PATH não está definida no .env!");
+    }
+
+    // 2. LÊ O CONTEÚDO DO ARQUIVO USANDO O CAMINHO
+    const fileContent = fs.readFileSync(serviceAccountPath, 'utf8');
+    
+    // 3. FAZ O PARSE DO CONTEÚDO PARA UM OBJETO JAVASCRIPT
+    serviceAccount = JSON.parse(fileContent);
+
+} catch (error) {
+    console.error("ERRO CRÍTICO: Falha ao carregar credenciais do Firebase.");
+    console.error(`Caminho usado: ${serviceAccountPath}`);
+    console.error(`Detalhes: ${error.message}`);
+    // Garante que a aplicação falhe se a credencial não puder ser carregada
+    process.exit(1); 
+}
+
+// O restante do seu código pode permanecer o mesmo:
 const projectId = serviceAccount.project_id; 
 
 let adminApp;
@@ -17,7 +38,7 @@ try {
   // Tenta obter o app existente
   adminApp = getApp();
 } catch (e) {
-  // Inicializa se não existir, passando o project ID explicitamente
+  // Inicializa se não existir
   adminApp = initializeApp({
     credential: cert(serviceAccount),
     projectId: projectId, 
@@ -25,8 +46,6 @@ try {
 }
 
 const db = getFirestore(adminApp);
-// 🚨 NOVO: Obtém a instância do Auth
 const adminAuth = getAuth(adminApp); 
 
-// EXPORTAÇÃO AJUSTADA: Exporta o serviço de Autenticação como adminAuth
 export { db, adminAuth };

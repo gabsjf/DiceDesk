@@ -1,5 +1,3 @@
-// src/routes/auth.routes.js
-
 import { Router } from "express";
 import { loginGet, loginPost, registerGet, registerPost, logout } from "../controllers/auth.controller.js";
 
@@ -11,6 +9,9 @@ router.post("/login", loginPost);
 router.get("/register", registerGet);
 router.post("/register", registerPost);
 
-router.get("/logout", logout);
+// CORRIGIDO: O frontend faz um POST, então a rota deve ser POST
+router.post("/logout", logout); 
+
+// (Removida a linha anterior: router.get("/logout", logout);)
 
 export default router;
