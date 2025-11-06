@@ -30,3 +30,6 @@ Thumbs.db
 logs/
 *.log
 *.log.*
+
+#chaves
+src/config/serviceAccountKey.json
