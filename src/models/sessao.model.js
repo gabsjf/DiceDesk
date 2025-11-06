@@ -25,29 +25,48 @@ function getSessaoDocRef(userId, id) {
 }
 // --- Fim Helpers de Coleção ---
 
-
-export async function listarPorCampanha(userId, campanhaId) {
-  // Usando a sintaxe de notação de ponto (collection.where)
-  const q = getSessaoCollectionRef(userId)
-    .where("campanhaId", "==", campanhaId)
-    .orderBy("createdAt", "desc"); // Ordena pela data de criação
+/**
+ * Busca uma sessão pelo ID e pelo ID do usuário mestre.
+ */
+export async function findById(userId, id) {
+  const docRef = getSessaoDocRef(userId, id);
+  const docSnap = await docRef.get();
   
-  const snapshot = await q.get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  if (!docSnap.exists) {
+    return null;
+  }
+  
+  return { id: docSnap.id, ...docSnap.data() };
 }
 
-export async function criar(userId, { campanhaId, titulo, capaUrl }) {
-  if (!campanhaId) throw new Error("campanhaId é obrigatório para criar uma sessão.");
+
+export async function listarPorCampanha(userId, campanhaId) {
+  // NOTA: Esta consulta requer um índice composto no Firestore (campanhaId + createdAt)
+  const q = getSessaoCollectionRef(userId)
+    .where("campanhaId", "==", campanhaId);
+    // .orderBy("createdAt", "desc"); // Removido para evitar erro de índice na nuvem
+  
+  const snapshot = await q.get();
+  
+  // Ordenação via JS para contornar o erro de índice no Firestore
+  const sessoes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  
+  // Ordena por data de criação (createdAt) de forma decrescente
+  return sessoes.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+}
+
+export async function criar(userId, payload) {
+  if (!payload.campanhaId) throw new Error("campanhaId é obrigatório para criar uma sessão.");
 
   const nova = { 
-    campanhaId, 
-    titulo, 
-    capaUrl: capaUrl || null, 
+    campanhaId: payload.campanhaId, 
+    titulo: payload.titulo, 
+    descricao: payload.descricao || null,
+    capaUrl: payload.capaUrl || null, 
     createdAt: FieldValue.serverTimestamp(),
-    userId: userId // Adiciona o ID do usuário para segurança
+    userId: userId 
   };
   
-  // Usando a sintaxe de notação de ponto (collection.add)
   const docRef = await getSessaoCollectionRef(userId).add(nova);
   
   return { id: docRef.id, ...nova };
@@ -55,7 +74,6 @@ export async function criar(userId, { campanhaId, titulo, capaUrl }) {
 
 export async function remover(userId, id) {
   const docRef = getSessaoDocRef(userId, id);
-  // Usando a sintaxe de notação de ponto (docRef.delete)
   await docRef.delete();
   return true;
 }
@@ -64,4 +82,5 @@ export const SessaoModel = {
   listarPorCampanha,
   criar,
   remover,
+  findById, // 🚨 ADICIONADO: Resolve o TypeError no controller de jogo
 };
