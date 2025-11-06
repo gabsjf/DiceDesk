@@ -1,85 +1,67 @@
 // src/config/firebase.js
+
 import { initializeApp, cert, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
-import { getStorage } from "firebase-admin/storage";
-import * as fs from "fs";
+import * as fs from 'fs';
 
-export const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
+// Variável global fornecida pelo Canvas/ambiente
+// 🚨 CORREÇÃO: Usa FIREBASE_PROJECT_ID como fallback se __app_id não estiver definido.
+export const appId = typeof __app_id !== 'undefined' ? __app_id : process.env.FIREBASE_PROJECT_ID;
+
 
 let serviceAccount = null;
 
-// Carrega credenciais
+// --- ESTRATÉGIA DE CARREGAMENTO DE CREDENCIAIS ---
+// Tenta carregar o JSON do service account em ordem de prioridade:
+// 1. Variável de ambiente FIREBASE_CREDENTIALS (usado no Render/GCP)
+// 2. Caminho do arquivo SERVICE_ACCOUNT_PATH (usado localmente)
+
 if (process.env.FIREBASE_CREDENTIALS) {
-  try {
-    serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
-  } catch (e) {
-    console.error("ERRO CRÍTICO: FIREBASE_CREDENTIALS não é JSON válido.", e);
-  }
+    // 1. Prioridade: Credenciais como string JSON completa (ambiente de nuvem)
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+    } catch (e) {
+        console.error("ERRO CRÍTICO: FIREBASE_CREDENTIALS não é um JSON válido.", e);
+    }
 } else if (process.env.SERVICE_ACCOUNT_PATH) {
-  try {
-    const fileContent = fs.readFileSync(process.env.SERVICE_ACCOUNT_PATH, "utf8");
-    serviceAccount = JSON.parse(fileContent);
-  } catch (e) {
-    console.error("ERRO CRÍTICO: Falha ao ler SERVICE_ACCOUNT_PATH.", e);
-  }
+    // 2. Alternativa: Credenciais via caminho do arquivo (ambiente local)
+    try {
+        const fileContent = fs.readFileSync(process.env.SERVICE_ACCOUNT_PATH, 'utf8');
+        serviceAccount = JSON.parse(fileContent);
+    } catch (e) {
+        console.error("ERRO CRÍTICO: Falha ao ler arquivo de Service Account.", e);
+        serviceAccount = null;
+    }
 }
+
 
 if (!serviceAccount || !serviceAccount.project_id) {
-  console.error("ERRO FATAL: Service Account inválida/ausente.");
-  process.exit(1);
+    // Se a Service Account não puder ser carregada, a aplicação não pode iniciar
+    console.error("ERRO FATAL: O objeto de Service Account é inválido ou ausente. Verifique FIREBASE_CREDENTIALS ou SERVICE_ACCOUNT_PATH.");
+    process.exit(1); 
 }
 
-const projectId = serviceAccount.project_id;
-
-// NORMALIZA bucket vindo da env (aceita gs:// e firebasestorage.app, mas converte)
-function normalizeBucketName(raw, projectId) {
-  if (!raw || !raw.trim()) return `${projectId}.appspot.com`;
-  let v = raw.trim();
-
-  if (v.startsWith("gs://")) v = v.replace(/^gs:\/\//, "");
-  // se vier "wyvwern-xxxx.firebasestorage.app" → converte para appspot.com
-  if (v.endsWith(".firebasestorage.app")) {
-    v = `${projectId}.appspot.com`;
-  }
-  return v;
-}
-
-const bucketName = normalizeBucketName(process.env.FIREBASE_STORAGE_BUCKET, projectId);
+// Extrai o Project ID do JSON secreto
+const projectId = serviceAccount.project_id; 
 
 let adminApp;
+
 try {
+  // Tenta obter o app existente
   adminApp = getApp();
-} catch {
+} catch (e) {
+  // Inicializa se não existir
   adminApp = initializeApp({
     credential: cert(serviceAccount),
-    projectId,
-    storageBucket: bucketName,
+    projectId: projectId, 
+    // Garante que o storage também use o ID
+    storageBucket: `${projectId}.appspot.com`
   });
 }
 
 const db = getFirestore(adminApp);
-const adminAuth = getAuth(adminApp);
-const storage = getStorage(adminApp);
-const bucket = storage.bucket(bucketName);
+const adminAuth = getAuth(adminApp); 
 
-// Valida o bucket no boot (log amigável no Render)
-(async () => {
-  try {
-    // Apenas tenta pegar metadados; se não existir, vai cair no catch
-    await bucket.getMetadata();
-    console.log("[Firebase Admin] inicializado", {
-      projectId,
-      storageBucket: bucket.name,
-    });
-  } catch (e) {
-    console.error(
-      "❌ Bucket inválido/inexistente. Use SEMPRE '<projectId>.appspot.com'. Atual:",
-      bucket.name,
-      "\nErro:",
-      e?.message || e
-    );
-  }
-})();
-
-export { db, adminAuth, adminApp, bucket };
+// 🚨 EXPORTAÇÃO AJUSTADA: Exporta a instância principal do App
+export { db, adminAuth, adminApp };
