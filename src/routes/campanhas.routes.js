@@ -9,6 +9,7 @@ import {
   editarGet,
   editarPost,
 } from "../controllers/campanha.controller.js";
+import { criarSessaoPost } from "../controllers/sessao.controller.js";
 import { uploadImageChain } from "../middlewares/upload.js";
 
 const router = Router();
@@ -16,7 +17,7 @@ const router = Router();
 // Lista
 router.get("/", index);
 
-// Criar
+// Criar campanha
 router.get("/criar", criarGet);
 router.post("/criar", uploadImageChain("capa", "capas"), criarPost);
 
@@ -30,5 +31,8 @@ router.post("/:id/editar", uploadImageChain("capa", "capas"), editarPost);
 // Apagar
 router.get("/:id/apagar", apagarGet);
 router.post("/:id/apagar", apagarPost);
+
+// 🔥 Criar sessão DENTRO da campanha (campo do form deve ser "imagem")
+router.post("/:id/sessoes", uploadImageChain("imagem", "sessoes"), criarSessaoPost);
 
 export default router;
