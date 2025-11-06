@@ -1,127 +1,230 @@
-import { getFirestore, doc, getDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
-import { initializeApp, getApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { deleteObject, getStorage, ref } from "firebase/storage";
-import { adminApp } from "../config/firebase.js"; // Importa a instância de adminApp
+import { CampanhaModel } from "../models/campanha.model.js";
+import { SessaoModel } from "../models/sessao.model.js";
 
-// Variáveis Globais de Configuração (simulação do ambiente Canvas)
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-
-// Inicialização do Firebase (se ainda não estiver inicializado)
-let firebaseApp;
-if (!getApps().length) {
-    firebaseApp = initializeApp(firebaseConfig);
-} else {
-    firebaseApp = getApp();
-}
-const db = getFirestore(firebaseApp);
-const storage = getStorage(adminApp);
-
-// =======================================================================
-// Funções Auxiliares de Path
-// =======================================================================
-
-/** Obtém o caminho da campanha no Firestore */
-const getCampaignDocRef = (campaignId) => 
-    doc(db, `/artifacts/${appId}/users/${adminApp.options.userId}/campanhas`, campaignId);
-
-/** Obtém o caminho da coleção de sessões dentro da campanha */
-const getSessionCollectionRef = (campaignId) => 
-    collection(db, `/artifacts/${appId}/users/${adminApp.options.userId}/campanhas/${campaignId}/sessoes`);
-
-// =======================================================================
-// 1. Rotas de Listagem (Index) e Criação
-// (Assumindo que este código está OK, não será modificado)
-// =======================================================================
-
+/* ========= LISTA ========= */
 export async function index(req, res) {
-    // ... (código existente para listar campanhas)
+  const userId = req.userId; // Extraído pelo middleware
+
+  let campanhas = [];
+  try {
+    // Busca campanhas de forma assíncrona com userId
+    campanhas = await CampanhaModel.listar(userId);
+  } catch (error) {
+    console.error("Erro ao listar campanhas:", error);
+    res.locals.flash = { danger: "Erro ao carregar lista de campanhas." };
+  }
+
+  const sistemas = [...new Set(
+    (campanhas || []).map(c => c?.sistema).filter(Boolean)
+  )].sort();
+
+  res.render("campanhas/index", {
+    layout: "_layout",
+    titulo: "Campanhas",
+    active: "campanhas",
+    campanhas,
+    sistemas
+  });
 }
 
-export async function criarGet(req, res) {
-    // ... (código existente para exibir formulário de criação GET)
+
+export function criarGet(req, res) {
+  res.render("campanhas/criar", {
+    layout: "_layout",
+    titulo: "Criar campanha",
+    active: "campanhas",
+    errors: null,
+    campanha: {}
+  });
 }
 
 export async function criarPost(req, res) {
-    // ... (código existente para processar criação POST)
+  const userId = req.userId; // Extraído pelo middleware
+  const { nome, sistema, descricao } = req.body || {};
+  const campanha = { nome, sistema, descricao };
+
+  const errors = {};
+  if (!nome || !nome.trim()) errors.nome = "O nome é obrigatório.";
+  if (!sistema || !sistema.trim()) errors.sistema = "O sistema é obrigatório.";
+
+  if (Object.keys(errors).length) {
+    return res.status(400).render("campanhas/criar", {
+      layout: "_layout",
+      titulo: "Criar campanha",
+      active: "campanhas",
+      errors,
+      campanha
+    });
+  }
+
+  // O processUpload já colocou a URL no req.body.capaUrl, se houver upload
+  const capaUrl = req.body.capaUrl || null;
+  
+  try {
+    const criada = await CampanhaModel.create(userId, {
+      nome: nome.trim(),
+      sistema: sistema.trim(),
+      descricao: (descricao || "").trim(),
+      capaUrl
+    });
+    res.locals.flash = { success: `Campanha "${criada.nome}" criada com sucesso!` };
+    return res.redirect(`/campanhas/${criada.id}`);
+
+  } catch(error) {
+    console.error("Erro ao criar campanha no Firestore:", error);
+    res.locals.flash = { danger: "Erro interno ao salvar a campanha." };
+    return res.redirect("/campanhas");
+  }
 }
 
-
-// =======================================================================
-// 2. Rota de Detalhes (Correção para o índice de sessão)
-// =======================================================================
 
 export async function detalhes(req, res) {
-    const { id } = req.params;
-    const campanhaRef = getCampaignDocRef(id);
+  const userId = req.userId;
+  const campanhaId = req.params.id;
+  
+  // 1. Busca a campanha principal
+  const campanha = await CampanhaModel.findById(userId, campanhaId);
+  
+  if (!campanha || campanha.userId !== userId) {
+    return res.status(404).send("Campanha não encontrada ou acesso negado.");
+  }
+  
+  // 2. Busca as sessões separadamente (requer índice no Firestore se usar orderBy)
+  try {
+    // Buscamos todas as sessões e ordenamos via JS (para evitar erro de índice)
+    const sessoes = await SessaoModel.listarPorCampanha(userId, campanhaId);
+    campanha.sessoes = sessoes; // Anexa as sessões à campanha para renderização
+  } catch (error) {
+    console.error("Erro ao buscar sessões para a campanha:", error);
+    campanha.sessoes = []; // Garante que a renderização não trave
+    res.locals.flash = { warning: "Houve um erro ao carregar as sessões desta campanha." };
+  }
 
-    try {
-        const docSnap = await getDoc(campanhaRef);
-
-        if (!docSnap.exists()) {
-            return res.status(404).render("404", { message: "Campanha não encontrada." });
-        }
-
-        const campanhaData = { id: docSnap.id, ...docSnap.data() };
-        
-        // -----------------------------------------------------------------
-        // 🚨 CRÍTICO: Consulta de Sessões - Requer Índice Composto
-        // -----------------------------------------------------------------
-        const sessoesRef = getSessionCollectionRef(id);
-        
-        // Cria a query: busca todas as sessões e ordena pela data em ordem decrescente.
-        // O Firestore REQUER um índice composto se você tiver um WHERE ou se usar um campo
-        // diferente do ID do documento para ordenação.
-        // Como 'data' não é indexada por padrão, a consulta pode falhar sem o índice.
-        const q = query(sessoesRef); // Não precisamos de WHERE, pois já estamos na subcoleção.
-
-        // Vamos ordenar em memória para evitar o erro de índice composto,
-        // garantindo que a consulta mais simples do Firestore funcione.
-        // A consulta mais simples (apenas a subcoleção) não requer índice.
-        const sessoesSnapshot = await getDocs(q);
-        
-        let sessoes = sessoesSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
-        // 💡 ORDENAÇÃO NO CLIENTE (Javascript) para evitar o erro de índice no Firestore.
-        // Ordena as sessões pela data do mais recente para o mais antigo (descendente).
-        sessoes.sort((a, b) => new Date(b.data) - new Date(a.data));
-
-        // -----------------------------------------------------------------
-        
-        res.render("campanha/detalhes", {
-            campanha: campanhaData,
-            sessoes: sessoes, // As sessões agora estão ordenadas e prontas para renderização
-            csrfToken: res.locals.csrfToken
-        });
-
-    } catch (error) {
-        console.error("Erro ao buscar detalhes da campanha e sessões:", error);
-        res.status(500).render("erro", { message: "Erro interno do servidor ao carregar campanha." });
-    }
+  res.render("campanhas/detalhes", {
+    layout: "_layout",
+    titulo: campanha.nome,
+    active: "campanhas",
+    campanha,
+    errors: null
+  });
 }
 
-
-// =======================================================================
-// 3. Rotas de Edição e Remoção
-// (Assumindo que este código está OK, não será modificado)
-// =======================================================================
-
-export async function apagarGet(req, res) {
-    // ... (código existente para exibir confirmação de apagar GET)
-}
-
-export async function apagarPost(req, res) {
-    // ... (código existente para processar remoção POST)
-}
 
 export async function editarGet(req, res) {
-    // ... (código existente para exibir formulário de edição GET)
+  const userId = req.userId;
+  const campanhaId = req.params.id;
+
+  const campanha = await CampanhaModel.findById(userId, campanhaId);
+  if (!campanha || campanha.userId !== userId) {
+    return res.status(404).send("Campanha não encontrada ou acesso negado.");
+  }
+
+  res.render("campanhas/editar", {
+    layout: "_layout",
+    titulo: `Editar — ${campanha.nome}`,
+    active: "campanhas",
+    errors: null,
+    campanha
+  });
 }
 
 export async function editarPost(req, res) {
-    // ... (código existente para processar edição POST)
+  const userId = req.userId;
+  const campanhaId = req.params.id;
+
+  // 1. Verifica se a campanha existe e se o usuário é o dono
+  const campanhaOriginal = await CampanhaModel.findById(userId, campanhaId);
+  if (!campanhaOriginal || campanhaOriginal.userId !== userId) {
+    return res.status(404).send("Campanha não encontrada ou acesso negado.");
+  }
+
+  const { nome, sistema, descricao } = req.body || {};
+  const errors = {};
+  if (!nome || !nome.trim()) errors.nome = "O nome é obrigatório.";
+  if (!sistema || !sistema.trim()) errors.sistema = "O sistema é obrigatório.";
+
+  const campanhaAtualizada = { ...campanhaOriginal, nome, sistema, descricao };
+
+  if (Object.keys(errors).length) {
+    return res.status(400).render("campanhas/editar", {
+      layout: "_layout",
+      titulo: `Editar — ${campanhaOriginal.nome}`,
+      active: "campanhas",
+      errors,
+      campanha: campanhaAtualizada
+    });
+  }
+  
+  // A URL da nova capa vem do req.body.capaUrl (se o upload ocorreu)
+  const capaUrl = req.body.capaUrl;
+  
+  const patch = {
+    nome: nome.trim(),
+    sistema: sistema.trim(),
+    descricao: (descricao || "").trim(),
+    // Usa a nova URL de capa se existir, caso contrário, mantém a original
+    ...(capaUrl ? { capaUrl: capaUrl } : {}) 
+  };
+
+  try {
+    await CampanhaModel.atualizarPorId(userId, campanhaId, patch);
+    res.locals.flash = { success: `Campanha "${patch.nome}" atualizada.` };
+    return res.redirect(`/campanhas/${campanhaId}`);
+  } catch(error) {
+    console.error("Erro ao atualizar campanha no Firestore:", error);
+    res.locals.flash = { danger: "Erro interno ao atualizar a campanha." };
+    // Renderiza a página de edição com erro
+    return res.status(500).render("campanhas/editar", {
+      layout: "_layout",
+      titulo: `Editar — ${campanhaOriginal.nome}`,
+      active: "campanhas",
+      errors: { geral: "Falha na atualização. Tente novamente." },
+      campanha: campanhaAtualizada
+    });
+  }
+}
+
+
+export async function apagarGet(req, res) {
+  const userId = req.userId;
+  const campanhaId = req.params.id;
+
+  const campanha = await CampanhaModel.findById(userId, campanhaId);
+  if (!campanha || campanha.userId !== userId) {
+    return res.status(404).send("Campanha não encontrada ou acesso negado.");
+  }
+
+  res.render("campanhas/apagar", {
+    layout: "_layout",
+    titulo: `Apagar — ${campanha.nome}`,
+    active: "campanhas",
+    campanha
+  });
+}
+
+export async function apagarPost(req, res) {
+  const userId = req.userId;
+  const campanhaId = req.params.id;
+  
+  // 1. Verifica se a campanha existe (opcional, mas bom para segurança)
+  const campanha = await CampanhaModel.findById(userId, campanhaId);
+  if (!campanha || campanha.userId !== userId) {
+    return res.status(404).send("Campanha não encontrada ou acesso negado.");
+  }
+
+  try {
+    // 2. Apaga (o modelo já verifica se tem ID)
+    const ok = await CampanhaModel.remove(userId, campanhaId);
+    if (!ok) throw new Error("Falha na remoção do DB.");
+    
+    // NOTA: A lógica para apagar a imagem no Firebase Storage deve vir aqui,
+    // mas depende do URL salvo (capaUrl).
+    
+    res.locals.flash = { success: `Campanha "${campanha.nome}" removida com sucesso.` };
+    return res.redirect("/campanhas");
+  } catch(error) {
+    console.error("Erro ao apagar campanha no Firestore:", error);
+    res.locals.flash = { danger: "Erro interno ao apagar a campanha." };
+    return res.redirect("/campanhas");
+  }
 }
