@@ -1,17 +1,38 @@
+// src/controllers/dashboard.controller.js
+
 import { CampanhaModel } from "../models/campanha.model.js";
 
+/**
+ * Retorna itens únicos de um array.
+ */
 function uniq(arr) { return [...new Set(arr)]; }
 
-export function dashboard(req, res) {
-  const campanhas = CampanhaModel.listar();
+/**
+ * Função utilitária para converter valor em Data, usada para ordenação.
+ */
+function toDate(d) { return d instanceof Date ? d : (d ? new Date(d) : null); }
 
-  
+export async function index(req, res) {
+  // O middleware extractUserId já injetou e garantiu que req.userId existe.
+  const userId = req.userId; 
+
+  let campanhas = [];
+  try {
+    // Chama a Model de forma assíncrona (await) e passa o userId
+    campanhas = await CampanhaModel.listar(userId);
+  } catch (error) {
+    console.error("Erro ao buscar campanhas no Firestore:", error);
+    // Em caso de falha de banco de dados, mostra um erro ao usuário
+    res.locals.flash = { danger: "Erro ao carregar dados do banco de dados." };
+    // Permite que a página seja renderizada, mas com dados vazios
+  }
+
+
   const total = campanhas.length;
   const sistemas = uniq(campanhas.map(c => c.sistema).filter(Boolean));
   const totalSistemas = sistemas.length;
 
-  // “recentes” (por createdAt desc; se não houver, usa ordem do array)
-  const toDate = (d) => d instanceof Date ? d : (d ? new Date(d) : null);
+  // Ordena por data de criação (createdAt) de forma decrescente
   const recentes = campanhas
     .slice()
     .sort((a, b) => (toDate(b?.createdAt)?.getTime() || 0) - (toDate(a?.createdAt)?.getTime() || 0))
