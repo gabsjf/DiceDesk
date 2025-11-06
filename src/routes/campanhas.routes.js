@@ -1,4 +1,3 @@
-// src/routes/campanhas.routes.js
 import { Router } from "express";
 import {
   index,
@@ -11,37 +10,48 @@ import {
   editarPost,
 } from "../controllers/campanha.controller.js";
 import { criarSessaoPost, apagarSessaoPost } from "../controllers/sessao.controller.js";
-import upload from "../middlewares/upload.js";
+import { uploadImage } from "../middlewares/upload.js"; 
+import { extractUserId } from "../middlewares/auth.middleware.js"; // Importa o extrator
 
 const router = Router();
 
-function attachCsrf(req, res, next) {
+/** Injeta variável para views que esperam csrfToken */
+function attachCsrf(_req, res, next) {
   res.locals.csrfToken = "";
   next();
 }
 
-/* Lista e criação */
-router.get("/", index);
-router.get("/criar", attachCsrf, criarGet);
-router.post("/criar", upload.single("capa"), criarPost);
+/* * ATENÇÃO: As rotas protegidas abaixo usam o extractUserId explicitamente 
+ * para garantir que o ID do usuário seja injetado antes do Multer.
+ */
 
-/* Aliases GET para rotas invertidas */
-router.get("/editar/:id", (req, res) => res.redirect(`/campanhas/${req.params.id}/editar`));
-router.get("/apagar/:id", (req, res) => res.redirect(`/campanhas/${req.params.id}/apagar`));
+/* ===== 1. Rotas de Listagem e Criação ===== */
+router.get("/", index); // /campanhas/
+router.get("/criar", attachCsrf, criarGet); // /campanhas/criar
+router.post("/criar", extractUserId, uploadImage.single("capa"), criarPost);
 
-/* Aliases POST para rotas invertidas, mantendo método e body via 307 */
-router.post("/editar/:id", (req, res) => res.redirect(307, `/campanhas/${req.params.id}/editar`));
-router.post("/apagar/:id", (req, res) => res.redirect(307, `/campanhas/${req.params.id}/apagar`));
+/* ===== 2. Rotas de Detalhes (Deve ser a última rota que usa apenas /:id) ===== */
+router.get("/:id", extractUserId, attachCsrf, detalhes); 
 
-/* Detalhes, editar e apagar no formato canônico */
-router.get("/:id", attachCsrf, detalhes);
-router.get("/:id/editar", attachCsrf, editarGet);
-router.post("/:id/editar", upload.single("capa"), editarPost);
-router.get("/:id/apagar", attachCsrf, apagarGet);
-router.post("/:id/apagar", apagarPost);
+/* ===== 3. Rotas de Edição e Remoção ===== */
 
-/* Sessões dentro da campanha */
-router.post("/:id/sessoes", upload.single("imagem"), criarSessaoPost);
-router.post("/:id/sessoes/:sid/apagar", apagarSessaoPost);
+// Rotas /campanhas/:id/editar
+router.get("/:id/editar", extractUserId, attachCsrf, editarGet); 
+router.post("/:id/editar", extractUserId, uploadImage.single("capa"), editarPost);
+
+// Rotas /campanhas/:id/apagar
+router.get("/:id/apagar", extractUserId, attachCsrf, apagarGet); 
+router.post("/:id/apagar", extractUserId, apagarPost);
+
+
+/* ===== 4. Rotas de Sessões (Ações Aninhadas) ===== */
+
+// Criar Sessão (POST /campanhas/:id/sessoes)
+// 🚨 CRUCIAL: extractUserId deve vir antes do uploadImage (Multer)
+router.post("/:id/sessoes", extractUserId, uploadImage.single("imagem"), criarSessaoPost);
+
+// Apagar Sessão (POST /campanhas/:id/sessoes/:sid/apagar)
+router.post("/:id/sessoes/:sid/apagar", extractUserId, apagarSessaoPost);
+
 
 export default router;
