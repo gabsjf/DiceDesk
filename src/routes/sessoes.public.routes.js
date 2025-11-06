@@ -9,7 +9,6 @@ import {
 
 const router = Router();
 
-router.get("/sessoes/:sid", jogarSessaoGet);
 router.post("/sessoes/:sid/combat/start", iniciarCombatePost);
 router.post("/sessoes/:sid/combat/action", acaoCombatePost);
 router.post("/sessoes/:sid/combat/finish", finalizarCombatePost);

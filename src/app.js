@@ -73,6 +73,7 @@ app.use((req, res, next) => {
     apiKey: process.env.FIREBASE_API_KEY || "",
     authDomain: process.env.FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : ""),
     projectId: projectId || "",
+    // Usamos FIREBASE_STORAGE_BUCKET na nuvem (appspot.com)
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : ""),
     messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
     appId: process.env.FIREBASE_APP_ID || "",
@@ -98,32 +99,30 @@ app.post("/logout", (req, res) => {
     }
 
     // 1. Limpa o cookie da sessão do Express
-    // O nome padrão é 'connect.sid', mas depende da sua configuração
-    // Se você usa o nome padrão, essa linha deve funcionar.
     res.clearCookie('connect.sid', { path: '/', sameSite: 'lax' }); 
     res.clearCookie('session', { path: '/', sameSite: 'lax' });
-
-    // 2. Opcional: Limpa o cookie de sessão do Firebase, se estiver usando
-    // (Apenas se o seu middleware de auth estiver setando um cookie chamado '__session')
-    // res.clearCookie('__session', { path: '/', sameSite: 'lax' }); 
 
     // Resposta de sucesso (o JavaScript do frontend fará o redirecionamento)
     res.status(200).json({ success: true, message: "Sessão encerrada com sucesso." });
   });
 });
 
+// Rotas públicas da sessão que NÃO exigem autenticação para serem acessadas (ex: links de convite ou combate público)
+// Estas devem ser as primeiras rotas de sessão a serem testadas.
+app.use("/", sessoesPublicRouter); 
+
 // Raiz
 app.get("/", (req, res) => res.redirect("/dashboard"));
 
-// Rotas protegidas
+// Rotas protegidas (todas que exigem authMiddleware)
 app.use("/dashboard", authMiddleware, dashboardRouter);
 app.use("/campanhas", authMiddleware, campanhasRouter);
 app.use("/jogadores", authMiddleware, jogadoresRouter);
-app.use("/sessoes", authMiddleware, sessoesPagesRouter);
-app.use("/campanhas/:id", authMiddleware, sessoesRouter);
+app.use("/sessoes", authMiddleware, sessoesPagesRouter); 
+// 🚨 CORREÇÃO: Mude a rota de sessões de volta para /sessoes (sem o :id) para que ela intercepte /sessoes/:sid
+app.use("/sessoes", authMiddleware, sessoesRouter); 
 
-// Rotas públicas da sessão, se existirem
-app.use("/", sessoesPublicRouter);
+// 🚨 NOTA: A rota /campanhas/:id/sessoes (criação) deve ser tratada dentro do campanhasRouter!
 
 // 404
 app.use((req, res) => res.status(404).send("Página não encontrada"));
