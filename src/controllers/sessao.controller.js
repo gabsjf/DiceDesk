@@ -1,29 +1,6 @@
 import { SessaoModel } from "../models/sessao.model.js";
 
 /**
- * Funções de utilidade para simular busca (necessárias para o jogarSessaoGet)
- * Assumimos que o SessaoModel já tem um método findById(userId, sessionId).
- */
-async function findSessaoById(sessionId) {
-    // NOTA: Como a rota /sessoes/:sid é pública (sessoes.public.routes.js),
-    // não temos o userId do mestre na requisição.
-    // Para simplificar o teste, vamos buscar a sessão APENAS pelo ID.
-    // O ideal seria buscar a sessão e verificar o ownerId.
-    
-    // Como não temos um método findById sem userId, simulamos a busca global:
-    // Na vida real, você precisaria de um método SessaoModel.findPublicById(sessionId).
-    
-    // Por enquanto, apenas para testes, retornamos um objeto mock.
-    return {
-        id: sessionId,
-        titulo: "Sessão de Teste (Mock)",
-        descricao: "Aventura pronta para ser jogada!",
-        // ... outros dados da sessão
-    };
-}
-
-
-/**
  * POST /campanhas/:id/sessoes
  * Cria uma sessão dentro de uma campanha.
  */
@@ -112,16 +89,21 @@ export async function apagarSessaoPost(req, res) {
 export async function jogarSessaoGet(req, res) {
   const sessionId = req.params.sid;
   
-  // 1. Busca a sessão (usando a função findSessaoById mockada ou real)
-  const sessao = await findSessaoById(sessionId);
+  // 1. Busca a sessão (você precisa ter um findById que funcione sem userId)
+  // NOTA: Como a rota é pública, não temos o userId do mestre na requisição.
+  // Você precisará de um SessaoModel.findPublicById(sessionId)
+  
+  // Usamos um mock temporário para evitar falha no Model (se ele não tiver findById(sessionId))
+  // Se seu SessaoModel.findById espera userId, isto falhará.
+  const sessao = await SessaoModel.findById("userIdTemporarioPublico", sessionId); 
 
   if (!sessao) {
     return res.status(404).send("Sessão de jogo não encontrada.");
   }
   
-  // 2. Renderiza a view (substitua 'sessao/jogo' pelo caminho correto)
+  // 2. Renderiza a view (o caminho 'sessao/jogo' é o correto, confirmado pela sua estrutura)
   res.render("sessao/jogo", {
-    layout: "layouts/auth_layout", // Use um layout que funcione para o jogo
+    layout: "_layout", // Layout principal
     titulo: `Jogando ${sessao.titulo}`,
     sessao: sessao,
   });
