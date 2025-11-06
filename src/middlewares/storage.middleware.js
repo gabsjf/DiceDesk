@@ -1,20 +1,13 @@
-// src/middlewares/storage.middleware.js
-
 import { getStorage } from "firebase-admin/storage";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
+// 🚨 Importa a instância de adminApp para garantir que o storage seja inicializado
+import { adminApp } from "../config/firebase.js"; 
 
-// Inicializa o Firebase Storage (usa a instância default do firebase.js)
-const bucket = getStorage().bucket(); 
-
-/**
- * Middleware de upload customizado usando Multer e Firebase Storage.
- *
- * Ele intercepta o buffer do arquivo e o envia diretamente para o Firebase Storage.
- * Ele define o campo 'capaUrl' ou 'imagemUrl' na requisição (req.file.path),
- * que será o URL público do Firebase Storage.
- */
+// Usa a instância de adminApp para obter o bucket.
+// O nome do bucket é configurado no firebase.js (PROJECT_ID.appspot.com)
+const bucket = getStorage(adminApp).bucket(); 
 
 // Configuração do Multer para armazenar em memória (buffer) antes do Storage
 const storage = multer.memoryStorage();
@@ -29,12 +22,15 @@ const uploadToStorage = multer({
 
 /**
  * Função que faz o upload real do arquivo para o Firebase Storage.
+ * É o middleware que deve ser chamado logo após o Multer (uploadToStorage.single).
  * @param {Express.Request} req - Objeto de requisição do Express.
  * @param {Express.Response} res - Objeto de resposta do Express.
  * @param {Function} next - Próximo middleware.
  */
 export function processUpload(req, res, next) {
+  // Se o upload for opcional e não houver arquivo, segue em frente
   if (!req.file) {
+    req.body.capaUrl = null; // Garante que o campo exista no body
     return next();
   }
 
@@ -54,28 +50,32 @@ export function processUpload(req, res, next) {
     metadata: {
       contentType: file.mimetype,
     },
-    // Garante que o arquivo seja acessível publicamente (se a permissão do bucket permitir)
+    // Garante que o arquivo seja acessível publicamente
     public: true 
   });
 
   blobStream.on('error', (error) => {
     console.error("Erro ao fazer upload para o Firebase Storage:", error);
-    // Remove o arquivo do buffer em caso de erro
-    next(new Error("Falha ao salvar o arquivo."));
+    // Chama o next com erro, que Express tratará como 500
+    next(new Error("Falha ao salvar o arquivo.")); 
   });
 
   blobStream.on('finish', async () => {
-    // 1. Torna o arquivo publicamente acessível (se ainda não estiver)
-    await fileUpload.makePublic();
+    try {
+      // 1. Torna o arquivo publicamente acessível (se necessário)
+      await fileUpload.makePublic();
 
-    // 2. Obtém o URL de acesso público (Google Cloud Storage URL)
-    // Este URL substitui o caminho local /uploads/...
-    file.path = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-    
-    // Injeta o path no corpo da requisição para uso posterior (ex: no controller)
-    req.body.capaUrl = file.path; 
-    
-    next();
+      // 2. Obtém o URL de acesso público (Google Cloud Storage URL)
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      
+      // Injeta o URL público no corpo da requisição para uso no controller
+      req.body.capaUrl = publicUrl; 
+      
+      next();
+    } catch (error) {
+      console.error("Erro ao finalizar upload ou obter URL pública:", error);
+      next(new Error("Falha ao obter URL pública do arquivo."));
+    }
   });
 
   // Envia o buffer do arquivo para o Firebase Storage
