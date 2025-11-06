@@ -1,44 +1,30 @@
 // src/middlewares/upload.js
+
+// O Multer deve ser configurado para armazenar em memória (buffer)
+// para que o Firebase Storage possa acessá-lo.
 import multer from "multer";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { processUpload } from "./storage.middleware.js"; // Importa a função de upload para o Firebase
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
+// 1. Configura o Multer para usar a memória (Memory Storage)
+// Isso é crucial para ambientes de nuvem/serverless.
+const storage = multer.memoryStorage();
 
-// Pasta de uploads na raiz do projeto (../uploads em relação a este arquivo)
-const UPLOAD_DIR = path.resolve(__dirname, "../../uploads");
-
-// Garante que a pasta exista
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-// Storage com nome de arquivo seguro
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext  = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext)
-      .replace(/\s+/g, "-")
-      .replace(/[^a-zA-Z0-9-_]/g, "")
-      .toLowerCase();
-    cb(null, `${Date.now()}-${base}${ext}`);
-  }
-});
-
-// Filtra somente imagens comuns
+// 2. Filtra somente imagens comuns
 const fileFilter = (req, file, cb) => {
-  if (/^image\/(png|jpe?g|webp|gif)$/i.test(file.mimetype)) return cb(null, true);
-  cb(new Error("Tipo de arquivo não suportado. Use PNG, JPG, WEBP ou GIF."));
+    if (/^image\/(png|jpe?g|webp|gif)$/i.test(file.mimetype)) {
+        return cb(null, true);
+    }
+    cb(new Error("Tipo de arquivo não suportado. Use PNG, JPG, WEBP ou GIF."));
 };
 
-// Limites (ex.: 5MB)
+// 3. Limites (ex.: 5MB)
 const limits = { fileSize: 5 * 1024 * 1024 };
 
+// 4. Cria a instância do Multer (upload)
 const upload = multer({ storage, fileFilter, limits });
 
-// Export default para combinar com: import upload from "../middlewares/upload.js";
+// Export default: Instância do Multer para uso nas rotas (Ex: upload.single('capa'))
 export default upload;
 
-// Export opcional da constante, se quiser usar em outro lugar
-export { UPLOAD_DIR };
+// Exporta o processUpload separadamente para ser chamado logo após o Multer na rota
+export { processUpload };

@@ -60,9 +60,11 @@ const _sistemas  = Array.isArray(sistemas)  ? sistemas  : [];
               <a class="btn btn-ring" href="/campanhas/<%= c.id %>/editar" title="Editar">
   <i class="bi bi-pencil"></i>
 </a>
-<a class="btn btn-danger btn-ring" href="/campanhas/<%= c.id %>/apagar" title="Apagar">
-  <i class="bi bi-trash"></i>
-</a>
+<form method="post" action="/campanhas/<%= c.id %>/apagar">
+    <button class="btn btn-danger btn-ring" title="Apagar">
+        <i class="bi bi-trash"></i>
+    </button>
+</form>
             </div>
           </div>
         </div>
