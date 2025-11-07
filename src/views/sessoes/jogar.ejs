@@ -587,9 +587,15 @@
   
   if (btnConfirm) {
     btnConfirm.addEventListener("click", async function () {
-      if (!party.length) return;
       
+      // 1. CONFIRMA INICIATIVA E ATUALIZA 'party'
       const orderedParty = confirmInitiative(); 
+      
+      // 🚨 VALIDAÇÃO ADICIONAL: Se a party está vazia, cancela a ação.
+      if (!orderedParty.length) { 
+        alert("Nenhum personagem com iniciativa válida foi encontrado."); 
+        return; 
+      }
       
       var order = orderedParty.map(function (p) {
         // CORREÇÃO #1: Usar HP Atual (hpCurrent) como HP inicial, que é salvo no localStorage
@@ -606,30 +612,15 @@
         };
       });
       
+      // 🚨 LINHA DE DEBUG (OPCIONAL, REMOVA DEPOIS DE TESTAR):
+      // console.log("Payload de Combate Enviado:", order);
+
       try {
         const resp = await fetch("/sessoes/" + encodeURIComponent(sessaoId) + "/combat/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roundStart: 1, order })
         });
-        
-        if (!resp.ok) { 
-            const errorText = await resp.text();
-            alert("Falha ao iniciar combate: " + errorText); 
-            return; 
-        }
-        
-        var el = document.getElementById("modal-combate");
-        var modal = bootstrap.Modal.getInstance(el);
-        if (modal) modal.hide();
-        window.location.reload(true);
-        
-      } catch (e) {
-        console.error(e);
-        alert("Erro de rede ao iniciar combate.");
-      }
-    });
-  }
 
   // CORREÇÃO ESSENCIAL #2: Adiciona lógica para salvar o HP e CA após finalizar o combate
   document.querySelectorAll('form[action$="/combat/finish"]').forEach(form => {
