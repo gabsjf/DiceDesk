@@ -11,7 +11,7 @@ import {
 } from "../controllers/campanha.controller.js";
 import { criarSessaoPost, apagarSessaoPost } from "../controllers/sessao.controller.js";
 // 🚨 CORREÇÃO 1: Importa o upload (default) e processUpload (nomeado)
-import upload, { processUpload } from "../middlewares/upload.js"; 
+import upload, { processUpload } from "../middlewares/upload.middleware.js"; 
 import { extractUserId } from "../middlewares/auth.middleware.js"; // Importa o extrator
 
 const router = Router();
