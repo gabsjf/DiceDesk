@@ -53,8 +53,8 @@
     </div>
 
     <% if (sessao && sessao.combat && sessao.combat.active) { 
-          const activeP = sessao.combat.order[sessao.combat.turnIndex];
-          const activeId = activeP?.idRef;
+        const activeP = sessao.combat.order[sessao.combat.turnIndex];
+        const activeId = activeP?.idRef;
     %>
       <div class="card mb-3">
         <div class="card-body d-flex align-items-center gap-2 flex-wrap">
@@ -84,12 +84,12 @@
       <div id="combatScroll" class="combat-scroll">
         <div class="combat-grid row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-4 g-3 mb-0">
           <% (sessao.combat.order || []).forEach(p => { 
-                const isActive = String(p.idRef) === String(activeId);
-                const hpPct = p.hpMax ? Math.max(0, Math.round((p.hp / p.hpMax) * 100)) : 0;
-                
-                let hpColorClass = 'bg-success'; // 100% - 50%
-                if (hpPct < 50 && hpPct >= 20) { hpColorClass = 'bg-warning'; } // 49% - 20%
-                else if (hpPct < 20) { hpColorClass = 'bg-danger'; } // 19% - 0%
+              const isActive = String(p.idRef) === String(activeId);
+              const hpPct = p.hpMax ? Math.max(0, Math.round((p.hp / p.hpMax) * 100)) : 0;
+              
+              let hpColorClass = 'bg-success'; // 100% - 50%
+              if (hpPct < 50 && hpPct >= 20) { hpColorClass = 'bg-warning'; } // 49% - 20%
+              else if (hpPct < 20) { hpColorClass = 'bg-danger'; } // 19% - 0%
           %>
             <div class="col">
               <div class="card h-100 <%= isActive ? 'turn-active' : 'turn-inactive' %>">
@@ -145,7 +145,6 @@
           </form>
         </div>
       </div>
-
     <% } else { %>
       <div class="party-grid" id="partyGrid"></div>
     <% } %>
@@ -285,8 +284,8 @@
           <label class="form-label">Condição</label>
           <select name="condition" class="form-select" id="condSelect">
             <% (typeof conditions !== 'undefined' && conditions ? conditions : [
-              "Amedrontado","Atordoado","Caído","Cego","Enfeitiçado","Envenenado","Exausto",
-              "Imobilizado","Inconsciente","Incapacitado","Invisível","Paralisado","Petrificado","Surdo","Agarra do","Contido"
+                "Amedrontado","Atordoado","Caído","Cego","Enfeitiçado","Envenenado","Exausto",
+                "Imobilizado","Inconsciente","Incapacitado","Invisível","Paralisado","Petrificado","Surdo","Agarrado","Contido"
             ]).forEach(c => { %>
               <option value="<%= c %>"><%= c %></option>
             <% }) %>
@@ -304,15 +303,17 @@
 <% const campanha = { id: campanhaId, nome: (sessao && (sessao.titulo || sessao.nome)) ? (sessao.titulo || sessao.nome) : 'Sessão' }; %>
 <%- include('../partials/_notas', { campanha }) %>
 
+
 <script>
   (function() {
     // ✅ Injeção do ID da sessão vinda do backend
     const sessaoId = "<%= sessao.id %>";
     const storageKey = `party_${sessaoId}`;
 
-    const personagensGrid = document.getElementById("personagens-grid");
-    const formPersonagem = document.getElementById("form-personagem");
-    const btnIniciarCombate = document.getElementById("btnIniciarCombate");
+    // ✅ CORREÇÃO: IDs corretos do HTML
+    const personagensGrid = document.getElementById("partyGrid"); 
+    const formPersonagem = document.getElementById("formPersonagem");
+    const btnIniciarCombate = document.getElementById("btnStartCombat");
 
     // 🔹 Recuperar personagens salvos
     function getParty() {
@@ -321,23 +322,38 @@
 
     // 🔹 Renderizar personagens na tela
     function renderParty() {
+      // ✅ CORREÇÃO: Garante que 'personagensGrid' exista (só existe se o combate não estiver ativo)
+      if (!personagensGrid) {
+        console.log("Modo de combate. A 'partyGrid' não está na tela.");
+        return;
+      }
+
       personagensGrid.innerHTML = "";
       const party = getParty();
 
       if (party.length === 0) {
-        personagensGrid.innerHTML = "<p class='text-center'>Nenhum personagem adicionado.</p>";
+        personagensGrid.innerHTML = "<p class='text-center text-muted'>Nenhum personagem adicionado.</p>";
         return;
       }
 
       party.forEach(p => {
         const div = document.createElement("div");
-        div.className = "col-md-3 personagem-card";
+        // Usei as classes do seu HTML de combate para ficar parecido
+        div.className = "col"; 
         div.innerHTML = `
-          <h5>${p.name}</h5>
-          <p>${p.isPc ? "Jogador" : "NPC"}</p>
-          <p>CA: ${p.ca ?? "-"}</p>
-          <p>HP: ${p.hpCurrent}/${p.hpMax}</p>
-          <button class="botao-remover" data-id="${p.id}">Remover</button>
+          <div class="card h-100 turn-inactive">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">${p.name}</h5>
+                <span class="badge ${p.isPc ? 'text-bg-success' : 'text-bg-secondary'} badge-chip">${p.isPc ? "PC" : "NPC"}</span>
+              </div>
+              <div class="small text-muted mb-2">Nível ${p.nivel || 0} • CA ${p.ca || '—'}</div>
+              <div class="mb-2">
+                <strong>HP</strong>: ${p.hpCurrent} / ${p.hpMax}
+              </div>
+              <button class="btn btn-sm btn-outline-danger botao-remover" data-id="${p.id}">Remover</button>
+            </div>
+          </div>
         `;
         personagensGrid.appendChild(div);
       });
@@ -358,30 +374,37 @@
     if (formPersonagem) {
       formPersonagem.addEventListener("submit", e => {
         e.preventDefault();
-        const data = new FormData(formPersonagem);
-        const nome = data.get("nome");
-        const tipo = data.get("tipo");
-        const nivel = parseInt(data.get("nivel"));
-        const ca = parseInt(data.get("ca"));
-        const hpMax = parseInt(data.get("hpMax"));
-        const hpCurrent = parseInt(data.get("hpCurrent"));
+        
+        // ✅ CORREÇÃO: Leitura por ID, pois inputs não têm 'name'
+        const nome = document.getElementById("personagem-nome").value;
+        const tipo = document.getElementById("personagem-tipo").value;
+        const nivel = parseInt(document.getElementById("personagem-nivel").value) || null;
+        const ca = parseInt(document.getElementById("personagem-ca").value) || null;
+        const hpMax = parseInt(document.getElementById("personagem-hp-max").value);
+
+        if (!nome || !hpMax) {
+          alert("Nome e HP Máximo são obrigatórios.");
+          return;
+        }
 
         let party = getParty();
-        const existente = party.find(p => p.name === nome);
+        // Lógica original: busca por nome para atualizar
+        const existente = party.find(p => p.name === nome); 
 
         if (existente) {
           // Atualiza personagem existente
           party = party.map(p => {
             if (p.name === nome) {
-              const newHpCurrent = Math.min(hpCurrent, hpMax);
+              // ✅ CORREÇÃO: A lógica antiga tentava ler hpCurrent do form.
+              // É mais seguro resetar o HP para o novo máximo ao atualizar.
               return {
-                id: p.id,
+                id: p.id, // Preserva ID
                 name: nome,
-                isPc: tipo === "pc",
-                nivel: nivel ?? null,
-                ca: ca ?? null,
+                isPc: tipo === "pc", // Valor do <option> é "pc"
+                nivel: nivel,
+                ca: ca,
                 hpMax: hpMax,
-                hpCurrent: newHpCurrent
+                hpCurrent: hpMax // Reseta HP para o novo máximo
               };
             }
             return p;
@@ -391,11 +414,11 @@
           const novo = {
             id: Date.now(),
             name: nome,
-            isPc: tipo === "pc",
-            nivel: nivel ?? null,
-            ca: ca ?? null,
+            isPc: tipo === "pc", // Valor do <option> é "pc"
+            nivel: nivel,
+            ca: ca,
             hpMax: hpMax,
-            hpCurrent: hpCurrent
+            hpCurrent: hpMax // Novo personagem com HP cheio
           };
           party.push(novo);
         }
@@ -425,12 +448,17 @@
           body: JSON.stringify({
             order: party,
             roundStart: 1
-          })
+          }),
+          // ✅✅✅ CORREÇÃO PRINCIPAL ✅✅✅
+          // Adiciona o cookie de sessão na requisição
+          credentials: "include", 
         })
         .then(res => res.json())
         .then(data => {
           if (data.success) {
             alert("Combate iniciado!");
+            // ✅ BÔNUS: Recarrega a página para mostrar a UI de combate
+            window.location.reload(); 
           } else {
             alert(`Erro: ${data.message}`);
           }
@@ -442,6 +470,7 @@
       });
     }
 
+    // Renderiza a party (se não estiver em combate)
     renderParty();
   })();
 </script>
