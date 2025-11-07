@@ -1,4 +1,3 @@
-import multer from 'multer';
 import cookieParser from 'cookie-parser';
 import csurf from 'csurf';
 
