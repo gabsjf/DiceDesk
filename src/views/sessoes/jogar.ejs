@@ -1,7 +1,6 @@
 <link rel="stylesheet" href="/css/jogar.css?v=13">
 
 <div class="jogar-container">
-  <!-- Sidebar -->
   <aside class="jogar-sidebar">
     <h6>Ferramentas</h6>
 
@@ -22,11 +21,6 @@
           <i class="bi bi-lightning-charge"></i> Iniciar combate
         </button>
       <% } %>
-
-      <!-- REMOVIDO: O botão Iniciativa está redundante -->
-      <!-- <button class="tool" id="btnOpenIni" data-bs-toggle="modal" data-bs-target="#modal-combate">
-        <i class="bi bi-swords"></i> Iniciativa
-      </button> -->
 
       <button
         class="tool"
@@ -62,7 +56,6 @@
           const activeP = sessao.combat.order[sessao.combat.turnIndex];
           const activeId = activeP?.idRef;
     %>
-      <!-- HEADER DO COMBATE -->
       <div class="card mb-3">
         <div class="card-body d-flex align-items-center gap-2 flex-wrap">
           <span class="badge text-bg-dark">Round <%= sessao.combat.round %></span>
@@ -88,7 +81,6 @@
         </div>
       </div>
 
-      <!-- ESTRUTURA SIMPLIFICADA PARA ROLAGEM -->
       <div id="combatScroll" class="combat-scroll">
         <div class="combat-grid row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-4 g-3 mb-0">
           <% (sessao.combat.order || []).forEach(p => { 
@@ -113,7 +105,6 @@
                     <strong>HP</strong>:
                     <%= p.hp %> / <%= p.hpMax %>
                     <div class="progress mt-1" style="height:8px;">
-                      <!-- Barra colorida com o status de vida durante o combate -->
                       <div class="progress-bar <%= hpColorClass %>" role="progressbar" style="width: <%= hpPct %> %"></div>
                     </div>
                   </div>
@@ -144,14 +135,11 @@
           <% }) %>
         </div>
       </div>
-      <!-- FIM DA ESTRUTURA SIMPLIFICADA -->
-
       <div class="card combat-footer mt-3">
         <div class="card-body d-flex align-items-center gap-2">
           <form class="d-flex align-items-center gap-2 ms-auto" method="post" action="/sessoes/<%= sessao.id %>/combat/finish">
             <label class="form-label mb-0">XP total</label>
             <input name="xpTotal" id="xpTotalFooter" type="number" min="0" class="form-control" style="width:140px;" placeholder="ex.: 1800">
-            <!-- Adicionada informação para o JS saber o que salvar -->
             <input type="hidden" name="combatOrderJson" id="combatOrderJson" value='<%= JSON.stringify(sessao.combat.order) %>'>
             <button class="btn btn-warning"><i class="bi bi-flag-fill me-1"></i> Finalizar combate</button>
           </form>
@@ -159,13 +147,11 @@
       </div>
 
     <% } else { %>
-      <!-- SEM COMBATE: GRID DE PERSONAGENS LOCAL (LOCALSTORAGE) -->
       <div class="party-grid" id="partyGrid"></div>
     <% } %>
   </main>
 </div>
 
-<!-- MODAL: ADICIONAR/EDITAR PERSONAGEM -->
 <div class="modal fade" id="modal-personagem" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content arc-card" id="formPersonagem">
@@ -209,7 +195,6 @@
   </div>
 </div>
 
-<!-- MODAL: DADOS -->
 <div class="modal fade" id="modal-dados" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content arc-card">
@@ -235,7 +220,6 @@
   </div>
 </div>
 
-<!-- MODAL: INICIATIVA (Adicionamos inputs) -->
 <div class="modal fade" id="modal-combate" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content arc-card">
@@ -243,22 +227,18 @@
         <h5 class="modal-title">Ordem de iniciativa (Insira o valor)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <!-- Conteúdo da lista é gerado via JS -->
       <div class="modal-body">
         <ul class="list-group ini-list" id="iniList"></ul>
       </div>
       <div class="modal-footer border-top-0">
-        <!-- Mantido para navegação manual -->
         <button class="btn btn-ring" id="prevTurn">◀ Anterior</button>
         <button class="btn btn-primary" id="nextTurn">Próximo ▶</button>
-        <!-- Alteramos o botão Iniciar para rodar a confirmação/leitura manual -->
         <button class="btn btn-success" id="confirmStart"><i class="bi bi-lightning-charge me-1"></i> Iniciar</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MODAL: AÇÃO COM SELEÇÃO DE ALVO -->
 <div class="modal fade" id="modal-acao" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content arc-card" id="formAcao" method="post" action="/sessoes/<%= sessao?.id %>/combat/action">
@@ -287,7 +267,6 @@
   </div>
 </div>
 
-<!-- MODAL: CONDIÇÃO COM SELEÇÃO DE ALVO -->
 <div class="modal fade" id="modal-cond" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content arc-card" id="formCondAdd" method="post" action="/sessoes/<%= sessao?.id %>/combat/action">
@@ -591,7 +570,7 @@
       // 1. CONFIRMA INICIATIVA E ATUALIZA 'party'
       const orderedParty = confirmInitiative(); 
       
-      // 🚨 VALIDAÇÃO ADICIONAL: Se a party está vazia, cancela a ação.
+      // VALIDAÇÃO ADICIONAL: Se a party está vazia, cancela a ação.
       if (!orderedParty.length) { 
         alert("Nenhum personagem com iniciativa válida foi encontrado."); 
         return; 
@@ -621,8 +600,33 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roundStart: 1, order })
         });
+        
+        // 1. LÓGICA DE SUCESSO
+        if (!resp.ok) { 
+            const errorText = await resp.text();
+            alert("Falha ao iniciar combate: " + errorText); 
+            return; 
+        }
+        
+        var el = document.getElementById("modal-combate");
+        var modal = bootstrap.Modal.getInstance(el);
+        if (modal) modal.hide();
+        
+        // Se o combate foi iniciado, recarregamos a página para o EJS renderizar a nova estrutura.
+        window.location.reload(true); 
 
-  // CORREÇÃO ESSENCIAL #2: Adiciona lógica para salvar o HP e CA após finalizar o combate
+      } catch (e) {
+        // 2. LÓGICA DE ERRO DE REDE/FETCH
+        console.error("Erro de rede ao iniciar combate:", e);
+        alert("Erro de rede ou falha ao iniciar combate.");
+      }
+    });
+  }
+  
+  
+  /* ===== LÓGICA DE FINALIZAR COMBATE E AÇÕES GLOBAIS ===== */
+  
+  // CORREÇÃO: Lógica para salvar o HP e CA após finalizar o combate
   document.querySelectorAll('form[action$="/combat/finish"]').forEach(form => {
     form.addEventListener('submit', async function(e) {
         // Pega a ordem final de combate do input oculto no formulário
@@ -637,7 +641,6 @@
             if (combatData) {
                 return {
                     ...p,
-                    // Garante que o HP não seja negativo (CORREÇÃO #1)
                     hpCurrent: Math.max(0, combatData.hp), 
                     ca: combatData.ca || p.ca,
                 };
@@ -650,20 +653,12 @@
         updatePartyStorage(); 
         
         // Permite que o formulário continue com o POST para o servidor
-        // (O servidor deve ter a lógica para desativar o combate)
     });
   });
   
-  // REMOVIDO btnOpenIni do JS
-  // if (btnOpenIni) {
-  //   btnOpenIni.addEventListener("click", function () {
-  //     if (!party.length) return; 
-  //     renderIni(); 
-  //   });
-  // }
-
-
+  
   /* ===== AÇÕES GLOBAIS, ESCOLHENDO O ALVO NO MODAL ===== */
+  
   function populateTargetSelect(selectEl, includeSelfFor, preferredFirstOf) {
     if (!COMBAT) return;
     selectEl.innerHTML = "";
