@@ -5,11 +5,9 @@ import { SessaoModel } from "../models/sessao.model.js";
  * Cria uma sessão dentro de uma campanha.
  */
 export async function criarSessaoPost(req, res) {
-  // Assume que req.userId é preenchido pelo middleware extractUserId
   const userId = req.userId;
   const campanhaId = req.params.id;
 
-  // Aceita tanto 'nome' quanto 'titulo' do formulário
   const { nome, titulo, descricao, data } = req.body || {};
   const finalTitulo = (titulo || nome || "").trim();
 
@@ -23,7 +21,6 @@ export async function criarSessaoPost(req, res) {
     return res.redirect(`/campanhas/${campanhaId}`);
   }
 
-  // A URL pública vem em req.body.capaUrl (definido pelo processUpload)
   const imagemUrl = req.body.capaUrl || null;
 
   try {
@@ -31,13 +28,12 @@ export async function criarSessaoPost(req, res) {
       titulo: finalTitulo,
       descricao: descricao ? descricao.trim() : null,
       data: data || null,
-      capaUrl: imagemUrl, // Usamos capaUrl para compatibilidade com o Model
-      campanhaId: campanhaId // Garante que o ID da campanha esteja no payload para o Model
+      capaUrl: imagemUrl,
+      campanhaId: campanhaId
     };
 
-    // Chamada direta, sem verificação de argumentos, pois a estrutura é finalizada
     await SessaoModel.criar(userId, payload);
-    
+
     req.session.flash = { success: `Sessão "${finalTitulo}" criada com sucesso!` };
     return res.redirect(`/campanhas/${campanhaId}`);
   } catch (error) {
@@ -61,14 +57,14 @@ export async function apagarSessaoPost(req, res) {
   }
 
   try {
-    // Chamada direta: remove(userId, sessaoId)
     const ok = await SessaoModel.remover(userId, sessaoId);
-    
+
     if (ok) {
       req.session.flash = { success: "Sessão removida com sucesso." };
     } else {
       req.session.flash = { warning: "Sessão não encontrada ou falha na remoção." };
     }
+
     return res.redirect(`/campanhas/${campanhaId}`);
   } catch (error) {
     console.error("Erro ao remover sessão no Firestore:", error);
@@ -76,7 +72,6 @@ export async function apagarSessaoPost(req, res) {
     return res.redirect(`/campanhas/${campanhaId}`);
   }
 }
-
 
 /* =========================================================
  * Rotas de Jogo e Combate (Protegidas/Simulação)
@@ -88,70 +83,62 @@ export async function apagarSessaoPost(req, res) {
  */
 export async function jogarSessaoGet(req, res) {
   const sessionId = req.params.sid;
-  
-  // Usa req.userId (garantido pelo middleware) para buscar
-  const userId = req.userId; 
+  const userId = req.userId;
 
   if (!userId) {
-      return res.status(403).send("Acesso negado: ID do Mestre não encontrado.");
+    return res.status(403).send("Acesso negado: ID do Mestre não encontrado.");
   }
-  
-  // 1. Busca a sessão 
-  const sessao = await SessaoModel.findById(userId, sessionId); 
+
+  const sessao = await SessaoModel.findById(userId, sessionId);
 
   if (!sessao || sessao.userId !== userId) {
-    // Garante que o documento exista E que pertença ao usuário logado
     return res.status(404).send("Sessão de jogo não encontrada ou acesso negado.");
   }
-  
-  // 🎯 Correção #1: Extrai o ID da Campanha da sessão encontrada
+
   const campanhaId = sessao.campanhaId;
 
-  // 2. Renderiza a view, passando o campanhaId
+  // 🔹 Enviamos também o userId e o sessaoId para o EJS usar no front
   res.render("sessoes/jogar", {
-    layout: "_layout", 
+    layout: "_layout",
     titulo: `Jogando ${sessao.titulo}`,
     sessao: sessao,
-    campanhaId: campanhaId, // <-- Variável que estava faltando no template EJS
+    campanhaId: campanhaId,
+    userId: userId,
+    sessaoId: sessionId, // <-- adicionado para uso no front
   });
 }
 
 /**
  * POST /sessoes/:sid/combat/start
- * 🎯 Correção #2: Salva o estado de combate na sessão.
+ * Inicia e salva o estado de combate na sessão.
  */
 export async function iniciarCombatePost(req, res) {
-  const userId = req.userId; // Assume que o middleware já validou o usuário
+  const userId = req.userId;
   const sessionId = req.params.sid;
-  
-  // Captura os dados enviados pelo JavaScript (order e roundStart)
-  const { order, roundStart } = req.body; 
+  const { order, roundStart } = req.body;
 
   if (!userId || !sessionId) {
-      return res.status(400).json({ success: false, message: "Dados da sessão inválidos." });
+    return res.status(400).json({ success: false, message: "Dados da sessão inválidos." });
   }
 
   if (!order || order.length === 0) {
-      return res.status(400).json({ success: false, message: "A ordem de iniciativa é obrigatória." });
+    return res.status(400).json({ success: false, message: "A ordem de iniciativa é obrigatória." });
   }
 
   try {
-    // 1. Monta o payload de combate
     const combatPayload = {
       active: true,
       round: roundStart || 1,
-      turnIndex: 0, // Começa no primeiro da ordem
+      turnIndex: 0,
       order: order,
     };
 
-    // 2. Chama a função do Model para atualizar a sessão no Firestore
     const ok = await SessaoModel.ativarCombate(userId, sessionId, combatPayload);
 
     if (ok) {
-        // Sucesso: o backend salvou o estado de combate
-        return res.json({ success: true, message: "Combate iniciado e salvo." });
+      return res.json({ success: true, message: "Combate iniciado e salvo." });
     } else {
-        return res.status(404).json({ success: false, message: "Sessão não encontrada." });
+      return res.status(404).json({ success: false, message: "Sessão não encontrada." });
     }
 
   } catch (error) {
@@ -160,11 +147,19 @@ export async function iniciarCombatePost(req, res) {
   }
 }
 
+/**
+ * POST /sessoes/:sid/combat/acao
+ * Processa uma ação durante o combate.
+ */
 export function acaoCombatePost(req, res) {
   console.log(`Ação de combate em: ${req.params.sid}`);
   return res.json({ success: true, message: "Ação processada." });
 }
 
+/**
+ * POST /sessoes/:sid/combat/end
+ * Finaliza o combate e limpa o estado salvo.
+ */
 export function finalizarCombatePost(req, res) {
   console.log(`Finalizando combate em: ${req.params.sid}`);
   return res.json({ success: true, message: "Combate finalizado." });
