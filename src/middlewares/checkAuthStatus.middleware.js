@@ -13,8 +13,7 @@ export const checkAuthStatus = (req, res, next) => {
   const sessionCookie = req.cookies.session || '';
 
   if (!sessionCookie) {
-    // Não há cookie? Tudo bem.
-    // Apenas chame next() e deixe 'req.user' indefinido.
+    console.log('[checkAuthStatus] ➡️ Sem cookie de sessão. Chamando next()');
     return next();
   }
 
@@ -22,14 +21,14 @@ export const checkAuthStatus = (req, res, next) => {
   admin.auth()
     .verifySessionCookie(sessionCookie, true /** checkRevoked */)
     .then((decodedClaims) => {
-      // 3. Sucesso! Injeta o usuário em 'req.user'
+      console.log('[checkAuthStatus] ✅ Cookie verificado. Injetando req.user:', decodedClaims.uid);
       req.user = decodedClaims;
       next();
     })
     .catch((error) => {
       // 4. Falha (cookie expirado/inválido)? Tudo bem.
       // Apenas chame next() e deixe 'req.user' indefinido.
-      console.warn("checkAuthStatus: Cookie de sessão inválido ou expirado.", error.code);
+      console.warn("[checkAuthStatus] ⚠️ Cookie inválido. Chamando next()", error.code);
       next();
     });
 };
@@ -71,10 +70,12 @@ export const authMiddleware = (req, res, next) => {
  * Ele pega 'req.user' (se existir) e transforma em 'req.userId'.
  */
 export const extractUserId = (req, res, next) => {
+  console.log('[extractUserId] ➡️ Verificando req.user:', req.user);
   const userId = req.user?.uid || req.user?.sub; 
 
   if (!userId) {
     // O 'checkAuthStatus' falhou, então 'req.user' está vazio.
+    console.error("[extractUserId] ❌ FALHA. req.user está indefinido ou não tem UID.");
     console.error("extractUserId: Falha, 'req.user' está indefinido.");
 
     // Retorna um erro JSON (perfeito para 'fetch')
@@ -85,6 +86,7 @@ export const extractUserId = (req, res, next) => {
   }
 
   // Sucesso!
+  console.log(`[extractUserId] ✅ Sucesso. Injetando req.userId: ${userId}`);
   req.userId = userId;
   next();
 };

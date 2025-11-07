@@ -94,11 +94,25 @@ export async function ativarCombate(userId, id, combatPayload) {
   return true; 
 }
 
+/**
+ * Atualiza campos específicos de uma sessão usando "dot notation".
+ */
+export async function atualizarCampos(userId, id, campos) {
+  if (!userId || !id || !campos) {
+    throw new Error("userId, id e campos são obrigatórios para atualizar.");
+  }
+  
+  const docRef = getSessaoDocRef(userId, id);
+  await docRef.update(campos);
+  return true;
+}
+
 
 export const SessaoModel = {
   listarPorCampanha,
   criar,
   remover,
   findById, 
-  ativarCombate, // <-- ADICIONADO
+  ativarCombate,
+  atualizarCampos // ✅ Está aqui!
 };

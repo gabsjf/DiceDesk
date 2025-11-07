@@ -1,4 +1,6 @@
 import { SessaoModel } from "../models/sessao.model.js";
+// Importa o FieldValue para usar o serverTimestamp()
+import { FieldValue } from "firebase-admin/firestore";
 
 /**
  * POST /campanhas/:id/sessoes
@@ -89,23 +91,28 @@ export async function jogarSessaoGet(req, res) {
     return res.status(403).send("Acesso negado: ID do Mestre não encontrado.");
   }
 
-  const sessao = await SessaoModel.findById(userId, sessionId);
+  try {
+    const sessao = await SessaoModel.findById(userId, sessionId);
 
-  if (!sessao || sessao.userId !== userId) {
-    return res.status(404).send("Sessão de jogo não encontrada ou acesso negado.");
+    if (!sessao || sessao.userId !== userId) {
+      return res.status(404).send("Sessão de jogo não encontrada ou acesso negado.");
+    }
+
+    const campanhaId = sessao.campanhaId;
+
+    res.render("sessoes/jogar", {
+      layout: "_layout",
+      titulo: `Jogando ${sessao.titulo}`,
+      sessao: sessao,
+      campanhaId: campanhaId,
+      userId: userId,
+      sessaoId: sessionId,
+    });
+
+  } catch (error) {
+    console.error("Erro ao carregar sessão de jogo:", error);
+    return res.status(500).send("Erro interno ao carregar a sessão.");
   }
-
-  const campanhaId = sessao.campanhaId;
-
-  // 🔹 Envia variáveis essenciais para o front
-  res.render("sessoes/jogar", {
-    layout: "_layout",
-    titulo: `Jogando ${sessao.titulo}`,
-    sessao: sessao,
-    campanhaId: campanhaId,
-    userId: userId,
-    sessaoId: sessionId, // <--- ESSENCIAL para o front
-  });
 }
 
 /**
@@ -120,7 +127,6 @@ export async function iniciarCombatePost(req, res) {
   if (!userId || !sessionId) {
     return res.status(400).json({ success: false, message: "Dados da sessão inválidos." });
   }
-
   if (!order || order.length === 0) {
     return res.status(400).json({ success: false, message: "A ordem de iniciativa é obrigatória." });
   }
@@ -148,19 +154,133 @@ export async function iniciarCombatePost(req, res) {
 }
 
 /**
- * POST /sessoes/:sid/combat/acao
+ * POST /sessoes/:sid/combat/action
  * Processa uma ação durante o combate.
+ * ✅ LÓGICA COMPLETA IMPLEMENTADA
  */
-export function acaoCombatePost(req, res) {
-  console.log(`Ação de combate em: ${req.params.sid}`);
-  return res.json({ success: true, message: "Ação processada." });
+export async function acaoCombatePost(req, res) {
+  const userId = req.userId;
+  const sessionId = req.params.sid;
+  // Pega os dados do formulário do modal
+  const { type, targetId, amount, condition } = req.body; 
+
+  try {
+    // 1. Carrega a sessão atual
+    const sessao = await SessaoModel.findById(userId, sessionId);
+    if (!sessao || !sessao.combat || !sessao.combat.active) {
+      throw new Error("Combate não está ativo ou sessão não encontrada.");
+    }
+
+    let combat = sessao.combat;
+    let camposParaAtualizar = {}; // Objeto para salvar as mudanças
+
+    // 2. Executa a ação baseada no 'type'
+    switch (type) {
+      case 'end_turn': {
+        const totalPersonagens = combat.order.length;
+        let newIndex = (combat.turnIndex + 1) % totalPersonagens;
+        let newRound = combat.round;
+        if (newIndex === 0) {
+          newRound++;
+        }
+        camposParaAtualizar = {
+          "combat.turnIndex": newIndex,
+          "combat.round": newRound,
+        };
+        break;
+      }
+
+      case 'damage':
+      case 'heal': {
+        const val = parseInt(amount) || 0;
+        const targetIndex = combat.order.findIndex(p => p.idRef === targetId);
+        
+        if (targetIndex === -1) throw new Error("Alvo não encontrado.");
+
+        if (type === 'damage') {
+          combat.order[targetIndex].hp = Math.max(0, combat.order[targetIndex].hp - val);
+        } else { // heal
+          combat.order[targetIndex].hp = Math.min(combat.order[targetIndex].hpMax, combat.order[targetIndex].hp + val);
+        }
+        
+        // Salva o array 'order' inteiro de volta
+        camposParaAtualizar = { "combat.order": combat.order };
+        break;
+      }
+
+      case 'condition_add': {
+        const targetIndex = combat.order.findIndex(p => p.idRef === targetId);
+        if (targetIndex === -1) throw new Error("Alvo não encontrado.");
+        
+        // Garante que o array exista
+        if (!combat.order[targetIndex].conditions) {
+          combat.order[targetIndex].conditions = [];
+        }
+        // Adiciona apenas se já não existir
+        if (condition && !combat.order[targetIndex].conditions.includes(condition)) {
+          combat.order[targetIndex].conditions.push(condition);
+        }
+        
+        camposParaAtualizar = { "combat.order": combat.order };
+        break;
+      }
+
+      case 'condition_remove': {
+        const targetIndex = combat.order.findIndex(p => p.idRef === targetId);
+        if (targetIndex === -1) throw new Error("Alvo não encontrado.");
+        
+        if (combat.order[targetIndex].conditions) {
+          combat.order[targetIndex].conditions = combat.order[targetIndex].conditions.filter(c => c !== condition);
+        }
+        
+        camposParaAtualizar = { "combat.order": combat.order };
+        break;
+      }
+
+      default:
+        // Se o tipo não for reconhecido, não faz nada, apenas redireciona
+        console.warn(`Tipo de ação desconhecido recebido: ${type}`);
+        // Não jogamos um erro, apenas não fazemos nada e recarregamos a página
+        return res.redirect(`/sessoes/${sessionId}`);
+    }
+
+    // 3. Adiciona um timestamp e salva no banco
+    camposParaAtualizar["combat.updatedAt"] = FieldValue.serverTimestamp();
+    await SessaoModel.atualizarCampos(userId, sessionId, camposParaAtualizar);
+
+    // 4. Redireciona de volta para a página
+    return res.redirect(`/sessoes/${sessionId}`);
+
+  } catch (error) {
+    console.error(`Erro ao processar ação (${type}) na sessão ${sessionId}:`, error);
+    return res.redirect(`/sessoes/${sessionId}`);
+  }
 }
 
 /**
- * POST /sessoes/:sid/combat/end
+ * POST /sessoes/:sid/combat/finish
  * Finaliza o combate e limpa o estado salvo.
+ * ✅ LÓGICA COMPLETA IMPLEMENTADA
  */
-export function finalizarCombatePost(req, res) {
-  console.log(`Finalizando combate em: ${req.params.sid}`);
-  return res.json({ success: true, message: "Combate finalizado." });
+export async function finalizarCombatePost(req, res) {
+  const userId = req.userId;
+  const sessionId = req.params.sid;
+  // (req.body.xpTotal e req.body.combatOrderJson estão disponíveis)
+
+  try {
+    // 1. Define o 'combat' de volta para 'null' para sair do modo de combate
+    const campos = {
+      "combat": null 
+    };
+
+    // 2. Salva no banco
+    await SessaoModel.atualizarCampos(userId, sessionId, campos);
+
+    // 3. Redireciona de volta para a página de sessão (que agora mostrará a party grid)
+    return res.redirect(`/sessoes/${sessionId}`);
+
+  } catch (error) {
+    console.error(`Erro ao finalizar combate na sessão ${sessionId}:`, error);
+    return res.redirect(`/sessoes/${sessionId}`);
+  }
 }

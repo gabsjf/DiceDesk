@@ -1,75 +1,72 @@
-// ✅ CORREÇÃO: Importa 'adminAuth' e dá o apelido (alias) de 'admin'
 import { adminAuth as admin } from '../config/firebase.js'; 
 
-/**
- * MIDDLEWARE 1: authMiddleware (Para Páginas)
- * (O resto do código funciona sem mudanças)
- */
 export const authMiddleware = (req, res, next) => {
   const sessionCookie = req.cookies.session || '';
+  if (!sessionCookie) return res.redirect("/login");
 
-  if (!sessionCookie) {
-    return res.redirect("/login");
-  }
-
-  // Agora 'admin' se refere ao 'adminAuth' que você importou
-  admin.auth()
-    .verifySessionCookie(sessionCookie, true /** checkRevoked */)
+  admin.verifySessionCookie(sessionCookie, true)
     .then((decodedClaims) => {
       req.user = decodedClaims;
       next();
     })
     .catch((error) => {
-      console.error("authMiddleware: Falha na verificação do cookie.", error.code);
+      console.error("authMiddleware: Falha.", error.code);
       return res.redirect("/login");
     });
 };
 
-/**
- * MIDDLEWARE 2: checkAuthStatus (Para API/Fetch)
- */
 export const checkAuthStatus = (req, res, next) => {
+  // ✅ LOG 1
+  console.log('[checkAuthStatus] ➡️ Executando...');
   const sessionCookie = req.cookies.session || '';
+  
+  // ✅ NOVO: Inicializa req.userId para garantir que não haja lixo
+  req.userId = undefined; 
 
   if (!sessionCookie) {
+    console.log('[checkAuthStatus] ...sem cookie. Chamando next()');
     return next();
   }
 
-  // E aqui também
-  admin.auth()
-    .verifySessionCookie(sessionCookie, true /** checkRevoked */)
+  admin.verifySessionCookie(sessionCookie, true)
     .then((decodedClaims) => {
+      // ✅ LOG 2
+      console.log('[checkAuthStatus] ✅ Cookie verificado. Injetando req.user:', decodedClaims.uid);
       req.user = decodedClaims;
+      
+      // ✅ CORREÇÃO: Popula req.userId aqui mesmo!
+      const userId = decodedClaims.uid || decodedClaims.sub;
+      req.userId = userId;
+      
+      // ✅ NOVO LOG
+      console.log(`[checkAuthStatus] ✅ req.userId populado: ${userId}`);
+      
       next();
     })
     .catch((error) => {
-      console.warn("checkAuthStatus: Cookie de sessão inválido ou expirado.", error.code);
+      console.warn("[checkAuthStatus] ⚠️ Cookie inválido. Chamando next()", error.code);
       next();
     });
 };
 
-
-/**
- * MIDDLEWARE 3: extractUserId (O "Fiscal")
- */
+// 🚨 ESTE MIDDLEWARE SE TORNA REDUNDANTE PARA ROTAS QUE USAM checkAuthStatus GLOBALMENTE
 export const extractUserId = (req, res, next) => {
+  // ✅ LOG 3
+  console.log('[extractUserId] ➡️ Executando... Verificando req.user:', req.user);
   const userId = req.user?.uid || req.user?.sub; 
 
   if (!userId) {
-    console.error("extractUserId: Falha ao extrair userId, 'req.user' está indefinido. Acesso negado.");
-
-    if (req.xhr || req.headers.accept.includes('json')) {
-        return res.status(401).json({ 
-          success: false, 
-          message: "Acesso negado. Sua sessão expirou, faça login novamente." 
-        });
-    }
-    
-    return res.redirect('/login');
+    // ✅ LOG 4
+    console.error("[extractUserId] ❌ FALHA. req.user está indefinido.");
+    return res.status(401).json({ 
+      success: false, 
+      message: "Acesso negado (extractUserId falhou)."
+    });
   }
 
+  // ✅ LOG 5
+  console.log(`[extractUserId] ✅ Sucesso. Injetando req.userId: ${userId}`);
   req.userId = userId;
   res.locals.userId = userId; 
-  
   next();
 };
