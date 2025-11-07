@@ -89,14 +89,14 @@ export async function apagarSessaoPost(req, res) {
 export async function jogarSessaoGet(req, res) {
   const sessionId = req.params.sid;
   
-  // 🚨 CORREÇÃO: Usa req.userId (garantido pelo middleware) para buscar
+  // Usa req.userId (garantido pelo middleware) para buscar
   const userId = req.userId; 
 
   if (!userId) {
       return res.status(403).send("Acesso negado: ID do Mestre não encontrado.");
   }
   
-  // 1. Busca a sessão (SessaoModel.findById agora existe e é buscado pelo userId)
+  // 1. Busca a sessão 
   const sessao = await SessaoModel.findById(userId, sessionId); 
 
   if (!sessao || sessao.userId !== userId) {
@@ -104,11 +104,15 @@ export async function jogarSessaoGet(req, res) {
     return res.status(404).send("Sessão de jogo não encontrada ou acesso negado.");
   }
   
-  // 2. Renderiza a view (o caminho 'sessao/jogo' é o correto)
+  // 🎯 CORREÇÃO APLICADA: Extrai o ID da Campanha da sessão encontrada
+  const campanhaId = sessao.campanhaId;
+
+  // 2. Renderiza a view, passando o campanhaId
   res.render("sessoes/jogar", {
     layout: "_layout", 
     titulo: `Jogando ${sessao.titulo}`,
     sessao: sessao,
+    campanhaId: campanhaId, // <-- Variável que estava faltando no template EJS
   });
 }
 
