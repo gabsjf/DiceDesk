@@ -1,91 +1,95 @@
-// src/middlewares/auth.middleware.js
-
-// Importa o serviço de autenticação diretamente, conforme configurado em firebase.js
-import { adminAuth } from "../config/firebase.js"; 
+import { admin } from '../config/firebase.js'; // ⬅️ IMPORTANTE: Verifique se este caminho está correto!
 
 /**
- * Extrai o ID do usuário da requisição e o injeta em req.userId.
- * Deve ser usado SOMENTE após o authMiddleware.
+ * MIDDLEWARE 1: authMiddleware (Para Páginas)
+ * * Força a autenticação. Se o usuário não estiver logado
+ * (sem cookie ou cookie inválido), ele REDIRECIONA para /login.
+ * * Use para rotas GET que renderizam páginas inteiras.
+ */
+export const authMiddleware = (req, res, next) => {
+  const sessionCookie = req.cookies.session || '';
+
+  if (!sessionCookie) {
+    // Não há cookie, força o login
+    return res.redirect("/login");
+  }
+
+  admin.auth()
+    .verifySessionCookie(sessionCookie, true /** checkRevoked */)
+    .then((decodedClaims) => {
+      // Sucesso, injeta o usuário e continua
+      req.user = decodedClaims;
+      next();
+    })
+    .catch((error) => {
+      // Cookie inválido ou expirado, força o login
+      console.error("authMiddleware: Falha na verificação do cookie.", error.code);
+      return res.redirect("/login");
+    });
+};
+
+/**
+ * MIDDLEWARE 2: checkAuthStatus (Para API/Fetch) - NOVO!
+ * * APENAS verifica a autenticação. Se o usuário não estiver logado
+ * (sem cookie ou cookie inválido), ele NÃO REDIRECIONA.
+ * * Ele apenas chama next() e deixa 'req.user' como 'undefined'.
+ * Use para rotas POST/PUT/DELETE chamadas via fetch (XHR/AJAX).
+ */
+export const checkAuthStatus = (req, res, next) => {
+  const sessionCookie = req.cookies.session || '';
+
+  if (!sessionCookie) {
+    // Não há cookie? Tudo bem. Continua sem usuário.
+    return next();
+  }
+
+  admin.auth()
+    .verifySessionCookie(sessionCookie, true /** checkRevoked */)
+    .then((decodedClaims) => {
+      // Sucesso, injeta o usuário
+      req.user = decodedClaims;
+      next();
+    })
+    .catch((error) => {
+      // Cookie inválido? Tudo bem. Continua sem usuário.
+      console.warn("checkAuthStatus: Cookie de sessão inválido ou expirado.", error.code);
+      next();
+    });
+};
+
+
+/**
+ * MIDDLEWARE 3: extractUserId (O "Fiscal") - ATUALIZADO!
+ * * Este middleware deve rodar DEPOIS de 'authMiddleware' OU 'checkAuthStatus'.
+ * Ele pega 'req.user' (se existir) e o transforma em 'req.userId'.
+ * * Se 'req.user' não existir (porque o checkAuthStatus falhou),
+ * ele retorna um erro JSON 401, que o seu 'fetch' vai entender.
  */
 export const extractUserId = (req, res, next) => {
-  // Verifica se a propriedade 'user' foi injetada pelo authMiddleware.
+  // Pega o ID do usuário injetado por 'authMiddleware' ou 'checkAuthStatus'
   const userId = req.user?.uid || req.user?.sub; 
-  
+
   if (!userId) {
-    // Isso só deve acontecer se o middleware for chamado em uma rota desprotegida
-    // ou se o authMiddleware falhar silenciosamente (o que não deveria acontecer).
-    console.error("Erro: userId ausente no extrator.");
-    return res.status(403).send("Acesso negado. Usuário não identificado.");
-  }
-  
-  req.userId = userId;
-  next();
-};
+    // Falha: 'req.user' está indefinido.
+    console.error("extractUserId: Falha ao extrair userId, 'req.user' está indefinido. Acesso negado.");
 
-
-/**
- * Verifica o cookie de sessão e injeta o usuário autenticado na requisição.
- * Se o usuário não estiver autenticado, redireciona para a página de login.
- */
-export const authMiddleware = async (req, res, next) => {
-  // Cookie usado para autenticação de sessão do Admin SDK
-  const sessionCookie = req.cookies.session || "";
-
-  res.locals.isLoggedIn = false;
-  res.locals.user = null;
-
-  // Se não houver cookie, o usuário não está logado
-  if (!sessionCookie) {
-    return res.redirect("/login");
-  }
-
-  try {
-    // 🚨 Este é o ponto de falha: usa adminAuth para verificar o token.
-    const decodedClaims = await adminAuth 
-      .verifySessionCookie(sessionCookie, true /** checkRevoked */);
-
-    req.user = decodedClaims;
-    res.locals.user = decodedClaims;
-    res.locals.isLoggedIn = true;
-    res.locals.displayName = decodedClaims.name || decodedClaims.email.split('@')[0] || 'Usuário';
-
-    return next();
-
-  } catch (error) {
-    // Falha na verificação: limpa o cookie e redireciona
-    console.error("Erro de validação do cookie:", error.message);
-    res.clearCookie("session");
-    return res.redirect("/login");
-  }
-};
-
-
-/**
- * Verifica o status de login, mas NÃO redireciona se falhar.
- * Usado em rotas que precisam saber se o usuário está logado, mas não precisam de proteção obrigatória.
- */
-export const checkAuthStatus = async (req, res, next) => {
-  // Cookie usado para autenticação de sessão do Admin SDK
-  const sessionCookie = req.cookies.session || "";
-  
-  res.locals.isLoggedIn = false;
-  res.locals.user = null;
-
-  if (sessionCookie) {
-    try {
-      const decodedClaims = await adminAuth
-        .verifySessionCookie(sessionCookie, true);
-
-      req.user = decodedClaims;
-      res.locals.user = decodedClaims;
-      res.locals.isLoggedIn = true;
-      res.locals.displayName = decodedClaims.name || decodedClaims.email.split('@')[0] || 'Usuário';
-
-    } catch (error) {
-      // Falha na autenticação silenciosa
-      res.clearCookie("session");
+    // Verifica se é uma requisição de API (fetch)
+    if (req.xhr || req.headers.accept.includes('json')) {
+        // Retorna o erro JSON que seu 'fetch' vai receber no 'alert()'
+        return res.status(401).json({ 
+          success: false, 
+          message: "Acesso negado. Sua sessão expirou, faça login novamente." 
+        });
     }
+    
+    // Se não for API (improvável cair aqui), redireciona
+    return res.redirect('/login');
   }
 
+  // Sucesso! Injeta req.userId para os controllers
+  req.userId = userId;
+  // Injeta também nos 'locals' para que o EJS possa acessar (se necessário)
+  res.locals.userId = userId; 
+  
   next();
 };
