@@ -338,7 +338,8 @@
   var iniIdx = 0;
 
   try { party = JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch (e) { party = []; }
-  
+  console.log("Variável storageKey:", storageKey);
+  console.log("Personagens carregados (party):", party);
   // CORREÇÃO ESSENCIAL #2: Função para encontrar um personagem na party por ID
   function findPersonagemById(id) {
       return party.find(p => String(p.id) === String(id));
@@ -569,7 +570,8 @@
       
       // 1. CONFIRMA INICIATIVA E ATUALIZA 'party'
       const orderedParty = confirmInitiative(); 
-      
+      console.log("Array de Personagens na Party:", party);
+        console.log("Array orderedParty:", orderedParty);
       // VALIDAÇÃO ADICIONAL: Se a party está vazia, cancela a ação.
       if (!orderedParty.length) { 
         alert("Nenhum personagem com iniciativa válida foi encontrado."); 
