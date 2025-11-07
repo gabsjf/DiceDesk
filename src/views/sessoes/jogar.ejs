@@ -571,7 +571,8 @@
       // 1. CONFIRMA INICIATIVA E ATUALIZA 'party'
       const orderedParty = confirmInitiative(); 
       console.log("Array de Personagens na Party:", party);
-        console.log("Array orderedParty:", orderedParty);
+      console.log("Array orderedParty:", orderedParty);
+      
       // VALIDAÇÃO ADICIONAL: Se a party está vazia, cancela a ação.
       if (!orderedParty.length) { 
         alert("Nenhum personagem com iniciativa válida foi encontrado."); 
@@ -593,14 +594,15 @@
         };
       });
       
-      // 🚨 LINHA DE DEBUG (OPCIONAL, REMOVA DEPOIS DE TESTAR):
-      // console.log("Payload de Combate Enviado:", order);
+      // 🎯 AQUI: Cria o payload JSON e loga o resultado
+      const payload = JSON.stringify({ roundStart: 1, order });
+      console.log("PAYLOAD JSON ENVIADO:", payload);
 
       try {
         const resp = await fetch("/sessoes/" + encodeURIComponent(sessaoId) + "/combat/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roundStart: 1, order })
+          body: payload // 🎯 AQUI: Usa a variável 'payload' criada acima
         });
         
         // 1. LÓGICA DE SUCESSO
@@ -624,7 +626,6 @@
       }
     });
   }
-  
   
   /* ===== LÓGICA DE FINALIZAR COMBATE E AÇÕES GLOBAIS ===== */
   
