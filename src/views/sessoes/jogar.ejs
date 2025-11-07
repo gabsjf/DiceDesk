@@ -305,427 +305,143 @@
 <%- include('../partials/_notas', { campanha }) %>
 
 <script>
-(function () {
-  var sessaoId   = "<%= sessao && sessao.id ? sessao.id : '' %>";
-  var campanhaId = "<%= campanhaId ? campanhaId : '' %>";
-  var storageKey = "party:" + sessaoId;
+  (function() {
+    // ✅ Injeção do ID da sessão vinda do backend
+    const sessaoId = "<%= sessao.id %>";
+    const storageKey = `party_${sessaoId}`;
 
-  // JSON.stringify é usado para passar dados complexos do servidor para o cliente
-  var COMBAT = <%- JSON.stringify(sessao && sessao.combat ? {
-    round: sessao.combat.round,
-    turnIndex: sessao.combat.turnIndex,
-    activeId: sessao.combat.order[sessao.combat.turnIndex]?.idRef,
-    activeName: sessao.combat.order[sessao.combat.turnIndex]?.name,
-    order: sessao.combat.order
-  } : null) %>;
+    const personagensGrid = document.getElementById("personagens-grid");
+    const formPersonagem = document.getElementById("form-personagem");
+    const btnIniciarCombate = document.getElementById("btnIniciarCombate");
 
-  var partyGrid      = document.getElementById("partyGrid");
-  var formPersonagem = document.getElementById("formPersonagem");
-  var diceBtn        = document.getElementById("rollDiceBtn");
-  var diceResult     = document.getElementById("diceResult");
-  var iniList        = document.getElementById("iniList");
-  var btnStartCombat = document.getElementById("btnStartCombat");
-  // var btnOpenIni     = document.getElementById("btnOpenIni"); // REMOVIDO
-  var btnConfirm     = document.getElementById("confirmStart");
-
-  var xpSidebar = document.getElementById("xpTotalSidebar");
-  var xpFooter  = document.getElementById("xpTotalFooter");
-  if (xpFooter && xpSidebar) {
-    xpFooter.addEventListener("input", function(){ xpSidebar.value = xpFooter.value; });
-  }
-
-  var party  = [];
-  var iniIdx = 0;
-
-  try { party = JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch (e) { party = []; }
-  console.log("Variável storageKey:", storageKey);
-  console.log("Personagens carregados (party):", party);
-  // CORREÇÃO ESSENCIAL #2: Função para encontrar um personagem na party por ID
-  function findPersonagemById(id) {
-      return party.find(p => String(p.id) === String(id));
-  }
-
-  /**
-   * Ajusta a altura máxima da área de combate para permitir rolagem vertical.
-   */
-  function adjustCombatScroll() {
-    var scroll = document.getElementById("combatScroll");
-    if (!scroll) return;
-
-    var top = scroll.getBoundingClientRect().top;
-    var footer = document.querySelector(".combat-footer");
-    var footerH = footer ? footer.getBoundingClientRect().height : 0;
-    var gap = 16;
-    var h = window.innerHeight - top - footerH - gap;
-    scroll.style.maxHeight = Math.max(200, h) + "px";
-  }
-
-  // disparos (garante que o cálculo da altura rode ao carregar e redimensionar)
-  window.addEventListener("resize", adjustCombatScroll);
-  window.addEventListener("load", adjustCombatScroll);
-  setTimeout(adjustCombatScroll, 0);
-
-
-  function renderParty() {
-    if (!partyGrid) return;
-    partyGrid.innerHTML = "";
-    if (!party.length) {
-      partyGrid.innerHTML =
-        '<div class="empty-state" style="grid-column:1/-1;"><i class="bi bi-people fs-1 d-block mb-2"></i>Nenhum personagem na sessão.</div>';
-      return;
+    // 🔹 Recuperar personagens salvos
+    function getParty() {
+      return JSON.parse(localStorage.getItem(storageKey)) || [];
     }
-    party.forEach(function (p) {
-      var card = document.createElement("div");
-      card.className = "party-card";
-      
-      // CALCULAR PORCENTAGEM DE HP COM BASE EM HP ATUAL E MÁXIMO
-      const hpCurrent = p.hpCurrent || p.hpMax || 0;
-      const hpMax = p.hpMax || 1; // Evita divisão por zero
-      const hpPct = Math.max(0, Math.min(100, Math.round((hpCurrent / hpMax) * 100)));
-      
-      var nivelHtml = p.nivel ? ('<span class="chip">Nvl ' + p.nivel + '</span>') : '';
-      var caHtml = p.ca ? ('<span class="chip">CA ' + p.ca + '</span>') : '';
-      
-      card.innerHTML =
-        '<div class="party-avatar">' + (p.name && p.name[0] ? p.name[0].toUpperCase() : "?") + '</div>' +
-        '<h5>' + (p.name || "Sem nome") + '</h5>' +
-        '<div class="chips">' +
-          '<span class="chip ' + (p.isPc ? 'pc' : 'npc') + '">' + (p.isPc ? 'PC' : 'NPC') + '</span>' +
-          nivelHtml +
-          caHtml + // EXIBE CA
-        '</div>' +
-        // EXIBE HP ATUAL/MÁXIMO
-        '<div class="text-muted small mt-2">HP: ' + hpCurrent + ' / ' + p.hpMax + '</div>' +
-        // BARRA DE PROGRESSO SIMPLES (FORA DO COMBATE)
-        // Usamos as classes do Bootstrap e um estilo para o fundo ficar da cor do background
-        '<div class="progress mt-1" style="height:8px; background-color: var(--surface-2); border-radius: 999px;">' +
-            // O estilo de cor é aplicado aqui. A cor será verde/amarelo/vermelho se usar classes CSS adequadas no seu jogar.css
-            '<div class="progress-bar" role="progressbar" style="width: ' + hpPct + '%; background-color: ' + getHpBarColor(hpPct) + ';"></div>' +
-        '</div>';
-        
-      partyGrid.appendChild(card);
-    });
-  }
 
-  // Helper para obter a cor da barra baseada na porcentagem
-  function getHpBarColor(hpPct) {
-      if (hpPct > 50) return 'var(--success)';
-      if (hpPct > 20) return 'var(--warning)';
-      return 'var(--danger)';
-  }
+    // 🔹 Renderizar personagens na tela
+    function renderParty() {
+      personagensGrid.innerHTML = "";
+      const party = getParty();
 
-  if (formPersonagem) {
-    formPersonagem.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var idEl    = document.getElementById("personagem-id");
-      var nome    = (document.getElementById("personagem-nome").value || "").trim();
-      var tipo    = document.getElementById("personagem-tipo").value;
-      var nivelV  = document.getElementById("personagem-nivel").value;
-      var caV     = document.getElementById("personagem-ca").value;
-      var hpMaxV  = document.getElementById("personagem-hp-max").value; // NOVO HP MÁXIMO
-
-      var nivel   = nivelV === "" ? null : parseInt(nivelV, 10);
-      var ca      = caV === "" ? null : parseInt(caV, 10); // NOVO CA
-      
-      // HP: agora baseado em HP Max
-      var hpMax   = hpMaxV === "" ? null : Math.max(1, parseInt(hpMaxV, 10));
-      if (!nome || !hpMax) { 
-        // alert("O nome e o HP Máximo são obrigatórios."); // Usando alert() aqui é problemático. Mantendo para compatibilidade.
-        return; 
-      }
-      
-      // NOVO: HP Atual é setado como HP Max no momento da criação/edição
-      var hpCurrent = hpMax; 
-      
-      var editingId = idEl.value ? Number(idEl.value) : null;
-      if (editingId) {
-        party = party.map(function (p) {
-          if (p.id === editingId) {
-            // Se editando, mantém HP Atual, mas o limita ao novo Máximo
-            const currentHp = p.hpCurrent || p.hpMax || 0;
-            const newHpCurrent = Math.min(currentHp, hpMax); 
-            return { 
-                id: p.id, 
-                name: nome, 
-                isPc: (tipo === "pc"), 
-                nivel: (nivel ?? null), 
-                ca: (ca ?? null), // Salva CA
-                hpMax: hpMax, 
-                hpCurrent: newHpCurrent, // Mantém o atual ou ajusta para o novo max
-                ini: p.ini || 0 
-            };
-          }
-          return p;
-        });
-      } else {
-        party.push({ 
-            id: Date.now(), 
-            name: nome, 
-            isPc: (tipo === "pc"), 
-            nivel: (nivel ?? null), 
-            ca: (ca ?? null), // Salva CA
-            hpMax: hpMax, 
-            hpCurrent: hpCurrent, // Salva HP Atual (igual ao Max)
-            ini: 0 
-        });
+      if (party.length === 0) {
+        personagensGrid.innerHTML = "<p class='text-center'>Nenhum personagem adicionado.</p>";
+        return;
       }
 
-      localStorage.setItem(storageKey, JSON.stringify(party));
-      renderParty();
-      var m = bootstrap.Modal.getInstance(document.getElementById("modal-personagem"));
-      if (m) m.hide();
-      formPersonagem.reset();
-      idEl.value = "";
-    });
-  }
-
-  if (diceBtn) {
-    diceBtn.addEventListener("click", function () {
-      var faces = parseInt(document.getElementById("dice-type").value, 10);
-      var result = Math.floor(Math.random() * faces) + 1;
-      diceResult.textContent = "🎲 " + result;
-    });
-  }
-
-  /* FUNÇÃO ALTERADA: Não rola dados, apenas garante que party está no storage */
-  function updatePartyStorage() {
-    localStorage.setItem(storageKey, JSON.stringify(party));
-  }
-
-  function renderIni() {
-    if (!iniList) return;
-    iniList.innerHTML = "";
-    
-    // Ordena a lista temporariamente pela iniciativa atual (ini) para mostrar a ordem
-    const sortedParty = [...party].sort((a, b) => (b.ini || 0) - (a.ini || 0));
-
-    sortedParty.forEach(function (p) {
-      const inputId = 'ini-input-' + p.id; 
-      
-      var li = document.createElement("li");
-      li.className = "list-group-item d-flex justify-content-between align-items-center";
-      
-      li.innerHTML =
-        '<div class="d-flex align-items-center flex-grow-1">' + 
-          '<span>' + p.name + ' ' +
-            (p.isPc ? '<span class="badge bg-success ms-2">PC</span>' : '<span class="badge bg-secondary ms-2">NPC</span>') +
-          '</span>' +
-        '</div>' +
-        '<div class="d-flex align-items-center">' +
-          '<label for="' + inputId + '" class="form-label mb-0 me-2 small text-muted">INIT</label>' +
-          '<input type="number" min="0" class="form-control form-control-sm" style="width: 70px;" id="' + inputId + '" data-personagem-id="' + p.id + '" value="' + (p.ini || '') + '">' +
-        '</div>';
-        
-      iniList.appendChild(li);
-    });
-  }
-  
-  // Função para ler os valores digitados e ordenar a party
-  function confirmInitiative() {
-      const iniValues = {};
-      document.querySelectorAll('#modal-combate input[data-personagem-id]').forEach(input => {
-          const id = Number(input.getAttribute('data-personagem-id'));
-          const value = parseInt(input.value, 10);
-          if (!isNaN(value)) {
-              iniValues[id] = value;
-          }
+      party.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "col-md-3 personagem-card";
+        div.innerHTML = `
+          <h5>${p.name}</h5>
+          <p>${p.isPc ? "Jogador" : "NPC"}</p>
+          <p>CA: ${p.ca ?? "-"}</p>
+          <p>HP: ${p.hpCurrent}/${p.hpMax}</p>
+          <button class="botao-remover" data-id="${p.id}">Remover</button>
+        `;
+        personagensGrid.appendChild(div);
       });
 
-      party = party.map(p => ({
-          ...p,
-          ini: iniValues[p.id] !== undefined ? iniValues[p.id] : (p.ini || 0)
-      }));
-
-      party.sort((a, b) => (b.ini || 0) - (a.ini || 0));
-      iniIdx = 0; 
-      updatePartyStorage();
-      
-      return party;
-  }
-  
-  // Removido highlightIni já que não é usado
-  
-  var nextBtn = document.getElementById("nextTurn");
-  var prevBtn = document.getElementById("prevTurn");
-  if (nextBtn) nextBtn.addEventListener("click", function () {
-    if (!party.length) return;
-    iniIdx = (iniIdx + 1) % party.length; 
-  });
-  if (prevBtn) prevBtn.addEventListener("click", function () {
-    if (!party.length) return;
-    iniIdx = (iniIdx - 1 + party.length) % party.length; 
-  });
-
-  if (btnStartCombat) {
-    btnStartCombat.addEventListener("click", function () {
-      if (!party.length) { alert("Adicione personagens antes de iniciar o combate."); return; }
-      renderIni(); 
-      var el = document.getElementById("modal-combate");
-      var modal = new bootstrap.Modal(el); modal.show();
-    });
-  }
-  
-  if (btnConfirm) {
-    btnConfirm.addEventListener("click", async function () {
-      
-      // 1. CONFIRMA INICIATIVA E ATUALIZA 'party'
-      const orderedParty = confirmInitiative(); 
-      console.log("Array de Personagens na Party:", party);
-      console.log("Array orderedParty:", orderedParty);
-      
-      // VALIDAÇÃO ADICIONAL: Se a party está vazia, cancela a ação.
-      if (!orderedParty.length) { 
-        alert("Nenhum personagem com iniciativa válida foi encontrado."); 
-        return; 
-      }
-      
-      var order = orderedParty.map(function (p) {
-        // CORREÇÃO #1: Usar HP Atual (hpCurrent) como HP inicial, que é salvo no localStorage
-        const hpCurrent = p.hpCurrent || p.hpMax || 0; 
-        return {
-          idRef: String(p.id),
-          name: p.name,
-          type: p.isPc ? "PC" : "NPC",
-          level: p.nivel || 0,
-          ca: p.ca || null, 
-          init: p.ini || 0,
-          hp: hpCurrent, // HP atual
-          hpMax: p.hpMax || 100
-        };
-      });
-      
-      // 🎯 AQUI: Cria o payload JSON e loga o resultado
-      const payload = JSON.stringify({ roundStart: 1, order });
-      console.log("PAYLOAD JSON ENVIADO:", payload);
-
-      try {
-        const resp = await fetch("/sessoes/" + encodeURIComponent(sessaoId) + "/combat/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: payload // 🎯 AQUI: Usa a variável 'payload' criada acima
+      // 🔹 Botões de remover
+      document.querySelectorAll(".botao-remover").forEach(btn => {
+        btn.addEventListener("click", e => {
+          const id = e.target.getAttribute("data-id");
+          let party = getParty();
+          party = party.filter(p => p.id != id);
+          localStorage.setItem(storageKey, JSON.stringify(party));
+          renderParty();
         });
-        
-        // 1. LÓGICA DE SUCESSO
-        if (!resp.ok) { 
-            const errorText = await resp.text();
-            alert("Falha ao iniciar combate: " + errorText); 
-            return; 
-        }
-        
-        var el = document.getElementById("modal-combate");
-        var modal = bootstrap.Modal.getInstance(el);
-        if (modal) modal.hide();
-        
-        // Se o combate foi iniciado, recarregamos a página para o EJS renderizar a nova estrutura.
-        window.location.reload(true); 
+      });
+    }
 
-      } catch (e) {
-        // 2. LÓGICA DE ERRO DE REDE/FETCH
-        console.error("Erro de rede ao iniciar combate:", e);
-        alert("Erro de rede ou falha ao iniciar combate.");
-      }
-    });
-  }
-  
-  /* ===== LÓGICA DE FINALIZAR COMBATE E AÇÕES GLOBAIS ===== */
-  
-  // CORREÇÃO: Lógica para salvar o HP e CA após finalizar o combate
-  document.querySelectorAll('form[action$="/combat/finish"]').forEach(form => {
-    form.addEventListener('submit', async function(e) {
-        // Pega a ordem final de combate do input oculto no formulário
-        const orderInput = document.getElementById('combatOrderJson');
-        if (!orderInput || !orderInput.value) return;
+    // 🔹 Adicionar/atualizar personagem
+    if (formPersonagem) {
+      formPersonagem.addEventListener("submit", e => {
+        e.preventDefault();
+        const data = new FormData(formPersonagem);
+        const nome = data.get("nome");
+        const tipo = data.get("tipo");
+        const nivel = parseInt(data.get("nivel"));
+        const ca = parseInt(data.get("ca"));
+        const hpMax = parseInt(data.get("hpMax"));
+        const hpCurrent = parseInt(data.get("hpCurrent"));
 
-        const finalOrder = JSON.parse(orderInput.value);
-        
-        // Atualiza o localStorage com o HP e CA final de cada personagem
-        let updatedParty = party.map(p => {
-            const combatData = finalOrder.find(cd => String(cd.idRef) === String(p.id));
-            if (combatData) {
-                return {
-                    ...p,
-                    hpCurrent: Math.max(0, combatData.hp), 
-                    ca: combatData.ca || p.ca,
-                };
+        let party = getParty();
+        const existente = party.find(p => p.name === nome);
+
+        if (existente) {
+          // Atualiza personagem existente
+          party = party.map(p => {
+            if (p.name === nome) {
+              const newHpCurrent = Math.min(hpCurrent, hpMax);
+              return {
+                id: p.id,
+                name: nome,
+                isPc: tipo === "pc",
+                nivel: nivel ?? null,
+                ca: ca ?? null,
+                hpMax: hpMax,
+                hpCurrent: newHpCurrent
+              };
             }
             return p;
-        });
+          });
+        } else {
+          // Adiciona novo personagem
+          const novo = {
+            id: Date.now(),
+            name: nome,
+            isPc: tipo === "pc",
+            nivel: nivel ?? null,
+            ca: ca ?? null,
+            hpMax: hpMax,
+            hpCurrent: hpCurrent
+          };
+          party.push(novo);
+        }
 
-        // Salva os dados atualizados no localStorage ANTES de enviar o POST para o servidor
-        party = updatedParty;
-        updatePartyStorage(); 
-        
-        // Permite que o formulário continue com o POST para o servidor
-    });
-  });
-  
-  
-  /* ===== AÇÕES GLOBAIS, ESCOLHENDO O ALVO NO MODAL ===== */
-  
-  function populateTargetSelect(selectEl, includeSelfFor, preferredFirstOf) {
-    if (!COMBAT) return;
-    selectEl.innerHTML = "";
-    const activeId = COMBAT.activeId;
+        localStorage.setItem(storageKey, JSON.stringify(party));
+        renderParty();
+        formPersonagem.reset();
 
-    const canSelect = COMBAT.order.filter(p => {
-      if (includeSelfFor === "heal") return true;
-      return String(p.idRef) !== String(activeId);
-    });
-
-    canSelect.forEach(p => {
-      const opt = document.createElement("option");
-      opt.value = p.idRef;
-      opt.textContent = p.name + " • " + p.type;
-      selectEl.appendChild(opt);
-    });
-
-    // preferências
-    if (preferredFirstOf === "heal") {
-      selectEl.value = activeId;
-    } else if (preferredFirstOf === "damage") {
-      // se sobrar, mantém primeiro inimigo já como default
-      if (String(selectEl.value) === String(activeId)) {
-        const firstOther = canSelect.find(x => String(x.idRef) !== String(activeId));
-        if (firstOther) selectEl.value = firstOther.idRef;
-      }
+        const modal = bootstrap.Modal.getInstance(document.getElementById("modal-personagem"));
+        modal.hide();
+      });
     }
-  }
 
-  function openActionModal(kind) {
-    if (!COMBAT) return;
+    // 🔹 Botão Iniciar Combate
+    if (btnIniciarCombate) {
+      btnIniciarCombate.addEventListener("click", () => {
+        const party = getParty();
+        if (party.length === 0) {
+          alert("Adicione personagens antes de iniciar o combate!");
+          return;
+        }
 
-    var title = kind === "heal" ? "Curar alvo" : "Atacar alvo";
-    var label = kind === "heal" ? "Cura" : "Dano";
-    var hint  = kind === "heal"
-      ? "Informe a quantidade de vida a restaurar no alvo escolhido."
-      : "Informe a quantidade de dano para aplicar no alvo escolhido.";
+        // ✅ Envia dados pro backend
+        fetch(`/sessoes/${sessaoId}/combat/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order: party,
+            roundStart: 1
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("Combate iniciado!");
+          } else {
+            alert(`Erro: ${data.message}`);
+          }
+        })
+        .catch(err => {
+          console.error("Erro ao iniciar combate:", err);
+          alert("Erro ao iniciar combate no servidor.");
+        });
+      });
+    }
 
-    document.getElementById("acaoTitulo").textContent  = title;
-    document.getElementById("acaoLabel").textContent   = label;
-    document.getElementById("acaoHint").textContent    = hint;
-
-    document.getElementById("acaoType").value    = kind;
-    document.getElementById("acaoSourceId").value = COMBAT.activeId;
-    document.getElementById("acaoAmount").value  = "";
-
-    var targetSel = document.getElementById("acaoTargetId");
-    populateTargetSelect(targetSel, kind, kind);
-
-    new bootstrap.Modal(document.getElementById("modal-acao")).show();
-  }
-
-  function openCondModal() {
-    if (!COMBAT) return;
-    document.getElementById("condSourceId").value = COMBAT.activeId;
-    populateTargetSelect(document.getElementById("condTargetId"), "heal", null);
-    new bootstrap.Modal(document.getElementById("modal-cond")).show();
-  }
-
-  document.querySelectorAll(".btn-attack").forEach(btn => btn.addEventListener("click", () => openActionModal("damage")));
-  document.querySelectorAll(".btn-heal").forEach(btn => btn.addEventListener("click", () => openActionModal("heal")));
-  document.querySelectorAll(".btn-cond").forEach(btn => btn.addEventListener("click", openCondModal));
-
-  /* ===== Parte sem combate: gerenciamento local ===== */
-  renderParty();
-})();
+    renderParty();
+  })();
 </script>

@@ -97,14 +97,14 @@ export async function jogarSessaoGet(req, res) {
 
   const campanhaId = sessao.campanhaId;
 
-  // 🔹 Enviamos também o userId e o sessaoId para o EJS usar no front
+  // 🔹 Envia variáveis essenciais para o front
   res.render("sessoes/jogar", {
     layout: "_layout",
     titulo: `Jogando ${sessao.titulo}`,
     sessao: sessao,
     campanhaId: campanhaId,
     userId: userId,
-    sessaoId: sessionId, // <-- adicionado para uso no front
+    sessaoId: sessionId, // <--- ESSENCIAL para o front
   });
 }
 
