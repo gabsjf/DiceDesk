@@ -622,7 +622,7 @@
         var el = document.getElementById("modal-combate");
         var modal = bootstrap.Modal.getInstance(el);
         if (modal) modal.hide();
-        location.reload();
+        window.location.reload(true);
         
       } catch (e) {
         console.error(e);

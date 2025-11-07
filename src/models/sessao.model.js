@@ -63,6 +63,7 @@ export async function criar(userId, payload) {
     titulo: payload.titulo, 
     descricao: payload.descricao || null,
     capaUrl: payload.capaUrl || null, 
+    combat: null, // Novo campo: Combate inicializado como null
     createdAt: FieldValue.serverTimestamp(),
     userId: userId 
   };
@@ -78,9 +79,26 @@ export async function remover(userId, id) {
   return true;
 }
 
+/**
+ * 🎯 NOVA FUNÇÃO: Ativa o combate na sessão, salvando a ordem de iniciativa.
+ */
+export async function ativarCombate(userId, id, combatPayload) {
+  const docRef = getSessaoDocRef(userId, id);
+
+  // Usa .update() para modificar apenas o campo 'combat'
+  await docRef.update({
+    combat: combatPayload,
+    updatedAt: FieldValue.serverTimestamp() // Opcional, mas útil
+  });
+  
+  return true; 
+}
+
+
 export const SessaoModel = {
   listarPorCampanha,
   criar,
   remover,
-  findById, // 🚨 ADICIONADO: Resolve o TypeError no controller de jogo
+  findById, 
+  ativarCombate, // <-- ADICIONADO
 };

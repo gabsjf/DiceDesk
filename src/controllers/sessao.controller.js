@@ -104,7 +104,7 @@ export async function jogarSessaoGet(req, res) {
     return res.status(404).send("Sessão de jogo não encontrada ou acesso negado.");
   }
   
-  // 🎯 CORREÇÃO APLICADA: Extrai o ID da Campanha da sessão encontrada
+  // 🎯 Correção #1: Extrai o ID da Campanha da sessão encontrada
   const campanhaId = sessao.campanhaId;
 
   // 2. Renderiza a view, passando o campanhaId
@@ -116,9 +116,48 @@ export async function jogarSessaoGet(req, res) {
   });
 }
 
-export function iniciarCombatePost(req, res) {
-  console.log(`Iniciando combate na sessão: ${req.params.sid}`);
-  return res.json({ success: true, message: "Combate iniciado." });
+/**
+ * POST /sessoes/:sid/combat/start
+ * 🎯 Correção #2: Salva o estado de combate na sessão.
+ */
+export async function iniciarCombatePost(req, res) {
+  const userId = req.userId; // Assume que o middleware já validou o usuário
+  const sessionId = req.params.sid;
+  
+  // Captura os dados enviados pelo JavaScript (order e roundStart)
+  const { order, roundStart } = req.body; 
+
+  if (!userId || !sessionId) {
+      return res.status(400).json({ success: false, message: "Dados da sessão inválidos." });
+  }
+
+  if (!order || order.length === 0) {
+      return res.status(400).json({ success: false, message: "A ordem de iniciativa é obrigatória." });
+  }
+
+  try {
+    // 1. Monta o payload de combate
+    const combatPayload = {
+      active: true,
+      round: roundStart || 1,
+      turnIndex: 0, // Começa no primeiro da ordem
+      order: order,
+    };
+
+    // 2. Chama a função do Model para atualizar a sessão no Firestore
+    const ok = await SessaoModel.ativarCombate(userId, sessionId, combatPayload);
+
+    if (ok) {
+        // Sucesso: o backend salvou o estado de combate
+        return res.json({ success: true, message: "Combate iniciado e salvo." });
+    } else {
+        return res.status(404).json({ success: false, message: "Sessão não encontrada." });
+    }
+
+  } catch (error) {
+    console.error(`Erro ao iniciar combate na sessão ${sessionId}:`, error);
+    return res.status(500).json({ success: false, message: "Erro interno do servidor ao iniciar combate." });
+  }
 }
 
 export function acaoCombatePost(req, res) {
