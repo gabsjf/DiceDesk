@@ -1,4 +1,4 @@
-#Wyvern
+# Wyvern
 Sistema de Gestão de Campanhas, Sessões e Combates para RPG
 
 O Wyvern é uma plataforma desenvolvida para auxiliar mestres de RPG na administração completa de suas campanhas.
@@ -9,7 +9,7 @@ Sobre o Projeto
 Feito com Vue.js, Node.js, JavaScript e Firebase, o Wyvern foi criado para otimizar a rotina do mestre, reduzindo a dependência de planilhas, anotações soltas e ferramentas separadas.
 O foco é permitir que o mestre mantenha a fluidez da sessão com acesso rápido às informações importantes.
 
-#Funcionalidades
+# Funcionalidades
 Campanhas
 
 Criar e editar campanhas.
