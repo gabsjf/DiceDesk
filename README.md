@@ -1,32 +1,40 @@
-Wyvern — Sistema de Gestão de Campanhas e Sessões de RPG
+Wyvern
+Sistema de Gestão de Campanhas, Sessões e Combates para RPG
 
-Wyvern é uma plataforma desenvolvida para auxiliar mestres de RPG na administração completa de campanhas, sessões e combates, oferecendo uma experiência organizada, prática e intuitiva.
-Criado com Vue.js, Node.js, JavaScript e Firebase, o Wyvern reúne em um único sistema todas as ferramentas necessárias para conduzir uma aventura com eficiência.
+O Wyvern é uma plataforma desenvolvida para auxiliar mestres de RPG na administração completa de suas campanhas.
+Com uma interface simples e eficiente, o sistema centraliza ferramentas essenciais para gerenciar sessões, personagens, anotações e combates de forma rápida e organizada.
 
-Principais funcionalidades
-Gestão de Campanhas
+Sobre o Projeto
 
-Criação e edição de campanhas.
+Feito com Vue.js, Node.js, JavaScript e Firebase, o Wyvern foi criado para otimizar a rotina do mestre, reduzindo a dependência de planilhas, anotações soltas e ferramentas separadas.
+O foco é permitir que o mestre mantenha a fluidez da sessão com acesso rápido às informações importantes.
 
-Definição do sistema utilizado (atualmente focado em Dungeons & Dragons 5e).
+ Funcionalidades
+Campanhas
 
-Organização centralizada das informações da aventura.
+Criar e editar campanhas.
 
-Sessões de Jogo
+Definir o sistema utilizado (atualmente focado em Dungeons & Dragons 5e).
 
-Criação e acompanhamento de sessões individuais.
+Painel central com visão geral da campanha.
 
-Página dedicada com visão geral dos personagens e status atuais.
+Sessões
 
-Registro de data e progresso da sessão.
+Registrar novas sessões.
 
-Sistema de Combate
+Exibir todos os personagens presentes e seu estado atual.
 
-Início de combate com painel próprio.
+Mostrar dados essenciais da sessão.
 
-Ordenação automática por iniciativa.
+Combate
 
-Ações rápidas para ataque, cura, aplicação de condições e gerenciamento de HP.
+Iniciar combate com painel dedicado.
+
+Iniciativa organizada automaticamente.
+
+Controles rápidos de ataque, cura e condições.
+
+Gerenciamento de HP e efeitos ativos.
 
 Avanço automático de turnos e rounds.
 
@@ -34,29 +42,33 @@ Finalização do combate com cálculo de XP total.
 
 Anotações
 
-Criação de notas organizadas em pastas.
+Criar pastas e notas personalizadas.
 
-Notas privadas do mestre e notas públicas para jogadores.
+Notas privadas do mestre e notas públicas para os jogadores.
 
-Editor com ferramentas de formatação avançada.
+Editor com formatação avançada.
 
-Ideal para armazenar resumos, pistas e documentos importantes.
+Ideal para armazenar resumos, pistas e documentos da campanha.
 
 Personagens
 
-Cadastro de personagens jogadores e NPCs com atributos essenciais.
+Adicionar PCs e NPCs com atributos essenciais.
 
-Visualização clara para uso tanto em combate quanto fora dele.
+Visualização clara dentro e fora do combate.
 
-Tecnologias utilizadas
+Controle de HP, CA, nível e condições.
 
-Frontend: Vue.js, JavaScript
+ Tecnologias Utilizadas
+
+Frontend: Vue.js
 
 Backend: Node.js
 
-Banco e infraestrutura: Firebase (Authentication, Firestore, Storage)
+Linguagem: JavaScript
+
+Infraestrutura: Firebase (Authentication, Firestore, Storage)
 
 Objetivo
 
-O Wyvern foi criado para facilitar o trabalho do mestre, centralizando todas as informações relevantes em um único sistema.
-O objetivo é permitir que a atenção do mestre permaneça no jogo e na narrativa, em vez de se dispersar com planilhas, anotações soltas ou ferramentas desconexas.
+O Wyvern foi projetado para agilizar o trabalho do mestre, fornecendo uma plataforma completa para gerenciamento de campanhas e sessões.
+A proposta é tornar a condução do jogo mais fluida e imersiva, permitindo que o mestre se concentre no que importa: a narrativa.
